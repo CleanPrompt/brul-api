@@ -1,0 +1,40 @@
+package nl.brul.api.features.auth
+
+import io.ktor.http.*
+import io.ktor.server.request.*
+import io.ktor.server.response.*
+import io.ktor.server.routing.*
+import nl.brul.api.features.auth.dto.LoginRequest
+import nl.brul.api.features.auth.dto.RegisterRequest
+
+fun Route.authRoutes(authService: AuthService) {
+
+    route("/auth") {
+
+        post("/register") {
+            val request = call.receive<RegisterRequest>()
+
+            val response = authService.register(request)
+
+            call.respond(HttpStatusCode.Created, response)
+        }
+
+        post("/login") {
+            val request = call.receive<LoginRequest>()
+
+            try {
+                val response = authService.login(request)
+                call.respond(HttpStatusCode.OK, response)
+            } catch (e: InvalidCredentialsException) {
+                call.respond(
+                    HttpStatusCode.Unauthorized,
+                    mapOf(
+                        "code" to "INVALID_CREDENTIALS",
+                        "message" to "Invalid email or password.",
+                        "details" to emptyList<String>()
+                    )
+                )
+            }
+        }
+    }
+}

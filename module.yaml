@@ -1,0 +1,29 @@
+product: jvm/app
+
+settings:
+  ktor: enabled
+  kotlin:
+    serialization: enabled
+  jvm:
+    mainClass: nl.brul.api.ApplicationKt
+
+dependencies:
+  - $ktor.server.core
+  - $ktor.server.netty
+  - $ktor.server.config.yaml
+  - $ktor.server.contentNegotiation
+  - $ktor.serialization.kotlinx.json
+  - $ktor.server.auth
+  - $ktor.server.auth.jwt
+
+  - ch.qos.logback:logback-classic:1.5.38
+
+  - com.h2database:h2:2.3.232
+  - org.jetbrains.exposed:exposed-core:0.61.0
+  - org.jetbrains.exposed:exposed-jdbc:0.61.0
+  - org.jetbrains.exposed:exposed-java-time:0.61.0
+
+  - org.mindrot:jbcrypt:0.4
+
+test-dependencies:
+  - $ktor.server.testHost
