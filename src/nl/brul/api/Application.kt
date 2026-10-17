@@ -1,9 +1,12 @@
+// src/nl/brul/api/Application.kt
+
 package nl.brul.api
 
 import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.application.*
 import io.ktor.server.netty.EngineMain
 import io.ktor.server.plugins.contentnegotiation.*
+import kotlinx.serialization.json.Json
 import nl.brul.api.common.error.configureErrorHandling
 import nl.brul.api.config.AppConfig
 import nl.brul.api.database.DatabaseFactory
@@ -31,7 +34,12 @@ fun Application.module() {
     DatabaseFactory.init(config.databasePath)
 
     install(ContentNegotiation) {
-        json()
+        json(
+            Json {
+                ignoreUnknownKeys = false
+                isLenient = false
+            }
+        )
     }
 
     configureErrorHandling()

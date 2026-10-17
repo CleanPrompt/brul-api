@@ -70,7 +70,7 @@ POST http://127.0.0.1:8080/api/v1/auth/refresh
 Content-Type: application/json
 
 {
-  "refreshToken": "PLAK_HIER_HET_REFRESH_TOKEN_UIT_TEST_1"
+  "refreshToken": "g7QFrVH0f-HHVjfC8urhAH3nd7a9Okf9blPB7X7uZlE"
 }
 
 
@@ -118,7 +118,7 @@ POST http://127.0.0.1:8080/api/v1/auth/logout
 Content-Type: application/json
 
 {
-  "refreshToken": "PLAK_HIER_HET_REFRESH_TOKEN_UIT_TEST_1"
+  "refreshToken": "g7QFrVH0f-HHVjfC8urhAH3nd7a9Okf9blPB7X7uZlE"
 }
 
 
@@ -131,7 +131,7 @@ POST http://127.0.0.1:8080/api/v1/auth/refresh
 Content-Type: application/json
 
 {
-  "refreshToken": "PLAK_HIER_HET_REFRESH_TOKEN_UIT_TEST_1"
+  "refreshToken": "g7QFrVH0f-HHVjfC8urhAH3nd7a9Okf9blPB7X7uZlE"
 }
 
 
@@ -143,7 +143,7 @@ POST http://127.0.0.1:8080/api/v1/auth/logout
 Content-Type: application/json
 
 {
-  "refreshToken": "PLAK_HIER_HET_REFRESH_TOKEN_UIT_TEST_1"
+  "refreshToken": "g7QFrVH0f-HHVjfC8urhAH3nd7a9Okf9blPB7X7uZlE"
 }
 
 

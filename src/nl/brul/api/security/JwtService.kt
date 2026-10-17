@@ -1,3 +1,5 @@
+// src/nl/brul/api/security/JwtService.kt
+
 package nl.brul.api.security
 
 import com.auth0.jwt.JWT
@@ -55,5 +57,27 @@ class JwtService(
             .withIssuer(issuer)
             .withAudience(audience)
             .build()
+    }
+
+    fun isValidTokenLifetime(
+        issuedAtMillis: Long,
+        expiresAtMillis: Long
+    ): Boolean {
+        val nowMillis = clock.millis()
+        val maxLifetimeMillis = ACCESS_TOKEN_SECONDS * 1000
+
+        if (issuedAtMillis > nowMillis) {
+            return false
+        }
+
+        if (expiresAtMillis <= issuedAtMillis) {
+            return false
+        }
+
+        if (expiresAtMillis <= nowMillis) {
+            return false
+        }
+
+        return expiresAtMillis - issuedAtMillis <= maxLifetimeMillis
     }
 }

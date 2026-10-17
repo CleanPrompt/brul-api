@@ -1,3 +1,5 @@
+# module.yaml
+
 product: jvm/app
 
 settings:
@@ -25,7 +27,7 @@ dependencies:
   - org.jetbrains.exposed:exposed-java-time:0.61.0
 
   - org.mindrot:jbcrypt:0.4
-
+  - com.auth0:java-jwt:4.6.0
 
 test-dependencies:
   - $ktor.server.testHost

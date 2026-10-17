@@ -1,3 +1,5 @@
+// src/nl/brul/api/security/JwtAuthentication.kt
+
 package nl.brul.api.security
 
 import io.ktor.http.HttpStatusCode
