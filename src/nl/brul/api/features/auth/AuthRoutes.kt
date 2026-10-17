@@ -13,7 +13,6 @@ fun Route.authRoutes(authService: AuthService) {
 
         post("/register") {
             val request = call.receive<RegisterRequest>()
-
             val response = authService.register(request)
 
             call.respond(HttpStatusCode.Created, response)
@@ -21,20 +20,9 @@ fun Route.authRoutes(authService: AuthService) {
 
         post("/login") {
             val request = call.receive<LoginRequest>()
+            val response = authService.login(request)
 
-            try {
-                val response = authService.login(request)
-                call.respond(HttpStatusCode.OK, response)
-            } catch (e: InvalidCredentialsException) {
-                call.respond(
-                    HttpStatusCode.Unauthorized,
-                    mapOf(
-                        "code" to "INVALID_CREDENTIALS",
-                        "message" to "Invalid email or password.",
-                        "details" to emptyList<String>()
-                    )
-                )
-            }
+            call.respond(HttpStatusCode.OK, response)
         }
     }
 }

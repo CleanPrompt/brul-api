@@ -4,6 +4,7 @@ import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.application.*
 import io.ktor.server.netty.EngineMain
 import io.ktor.server.plugins.contentnegotiation.*
+import nl.brul.api.common.error.configureErrorHandling
 import nl.brul.api.database.DatabaseFactory
 import nl.brul.api.features.auth.AuthService
 import nl.brul.api.features.auth.repository.ExposedRefreshSessionRepository
@@ -37,6 +38,8 @@ fun Application.module() {
     install(ContentNegotiation) {
         json()
     }
+
+    configureErrorHandling()
 
     val userRepository = ExposedUserRepository()
     val passwordHasher = BCryptPasswordHasher()
