@@ -1,0 +1,122 @@
+### TEST 1 — Geldige registratie
+# Verwacht: 201 Created
+# Gebruik voor deze test een e-mailadres dat nog niet bestaat.
+
+POST http://127.0.0.1:8080/api/v1/auth/register
+Content-Type: application/json
+
+{
+  "email": "http-test-01@brul.nl",
+  "password": "Welkom123!"
+}
+
+
+### TEST 2 — Dubbel e-mailadres
+# Verwacht: 409 Conflict
+# Voer TEST 1 eerst succesvol uit.
+
+POST http://127.0.0.1:8080/api/v1/auth/register
+Content-Type: application/json
+
+{
+  "email": "http-test-01@brul.nl",
+  "password": "Welkom123!"
+}
+
+
+### TEST 3 — E-mailadres met hoofdletters en spaties
+# Verwacht: 201 Created
+# De API moet het e-mailadres normaliseren.
+
+POST http://127.0.0.1:8080/api/v1/auth/register
+Content-Type: application/json
+
+{
+  "email": "  HTTP-TEST-02@BRUL.NL  ",
+  "password": "Welkom123!"
+}
+
+
+### TEST 4 — Genormaliseerd e-mailadres bestaat al
+# Verwacht: 409 Conflict
+# Voer TEST 3 eerst succesvol uit.
+
+POST http://127.0.0.1:8080/api/v1/auth/register
+Content-Type: application/json
+
+{
+  "email": "http-test-02@brul.nl",
+  "password": "Welkom123!"
+}
+
+
+### TEST 5 — Ongeldig e-mailadres
+# Verwacht: 400 Bad Request
+
+POST http://127.0.0.1:8080/api/v1/auth/register
+Content-Type: application/json
+
+{
+  "email": "geen-geldig-emailadres",
+  "password": "Welkom123!"
+}
+
+
+### TEST 6 — Te kort wachtwoord
+# Verwacht: 400 Bad Request
+
+POST http://127.0.0.1:8080/api/v1/auth/register
+Content-Type: application/json
+
+{
+  "email": "http-test-03@brul.nl",
+  "password": "abc123"
+}
+
+
+### TEST 7 — Leeg wachtwoord
+# Verwacht: 400 Bad Request
+
+POST http://127.0.0.1:8080/api/v1/auth/register
+Content-Type: application/json
+
+{
+  "email": "http-test-04@brul.nl",
+  "password": ""
+}
+
+
+### TEST 8 — Ontbrekend verplicht veld
+# Verwacht: 400 Bad Request
+
+POST http://127.0.0.1:8080/api/v1/auth/register
+Content-Type: application/json
+
+{
+  "email": "http-test-05@brul.nl"
+}
+
+
+### TEST 9 — Ongeldige JSON
+# Verwacht: 400 Bad Request
+
+POST http://127.0.0.1:8080/api/v1/auth/register
+Content-Type: application/json
+
+{
+  "email": "http-test-06@brul.nl",
+  "password": "Welkom123!",
+}
+
+
+### TEST 10 — Wachtwoord van 8 tekens
+# Verwacht: 201 Created
+# Ondergrens van de wachtwoordlengte.
+
+POST http://127.0.0.1:8080/api/v1/auth/register
+Content-Type: application/json
+
+{
+  "email": "http-test-07@brul.nl",
+  "password": "12345678"
+}

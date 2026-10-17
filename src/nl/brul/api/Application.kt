@@ -13,34 +13,29 @@ import nl.brul.api.features.user.repository.ExposedUserRepository
 import nl.brul.api.security.BCryptPasswordHasher
 import nl.brul.api.security.JwtService
 import nl.brul.api.security.RefreshTokenService
+import nl.brul.api.security.configureJwtAuthentication
 
 fun main(args: Array<String>) {
     EngineMain.main(args)
 }
 
 fun Application.module() {
-    // Centrale configuratie inladen
     val config = AppConfig.fromEnvironment()
 
-    // JWT-service instellen
     val jwtService = JwtService(
         secret = config.jwtSecret,
         issuer = config.jwtIssuer,
         audience = config.jwtAudience
     )
 
-    // Database initialiseren
     DatabaseFactory.init(config.databasePath)
 
-    // JSON-ondersteuning
     install(ContentNegotiation) {
         json()
     }
 
-    // Centrale foutafhandeling
     configureErrorHandling()
 
-    // Repositories en services
     val userRepository = ExposedUserRepository()
     val passwordHasher = BCryptPasswordHasher()
     val refreshTokenService = RefreshTokenService()
@@ -54,6 +49,10 @@ fun Application.module() {
         refreshSessions = refreshSessionRepository
     )
 
-    // API-routes registreren
+    configureJwtAuthentication(
+        jwtService = jwtService,
+        users = userRepository
+    )
+
     configureRouting(authService)
 }

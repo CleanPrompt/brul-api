@@ -1,0 +1,10 @@
+### TEST 1 — Health check
+# Verwacht: 200 OK
+
+GET http://127.0.0.1:8080/api/v1/health
+
+
+### TEST 2 — Onbekend endpoint
+# Verwacht: 404 Not Found
+
+GET http://127.0.0.1:8080/api/v1/bestaat-niet

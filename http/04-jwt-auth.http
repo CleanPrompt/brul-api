@@ -1,0 +1,64 @@
+### TEST 1 — Login voor een nieuw access token
+# Verwacht: 200 OK
+# Kopieer het accessToken uit de response.
+
+POST http://127.0.0.1:8080/api/v1/auth/login
+Content-Type: application/json
+
+{
+  "email": "http-test-01@brul.nl",
+  "password": "Welkom123!"
+}
+
+
+### TEST 2 — Eigen account zonder token
+# Verwacht: 401 Unauthorized
+# Foutcode: UNAUTHORIZED
+
+GET http://127.0.0.1:8080/api/v1/users/me
+
+
+### TEST 3 — Eigen account met geldig JWT
+# Verwacht: 200 OK
+# Plak het accessToken uit TEST 1.
+# Response mag geen passwordHash bevatten.
+
+GET http://127.0.0.1:8080/api/v1/users/me
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIyIiwicm9sZSI6IlVTRVIiLCJpc3MiOiJicnVsLWFwaSIsImF1ZCI6ImJydWwtY2xpZW50IiwiaWF0IjoxNzkyMjc0NTIxLCJleHAiOjE3OTIyNzU0MjF9.KxMvYkjd1WUhGk5_NvOzlB294-TPRmZ9FtlSoTUT5II
+
+
+### TEST 4 — Eigen account met ongeldig JWT
+# Verwacht: 401 Unauthorized
+
+GET http://127.0.0.1:8080/api/v1/users/me
+Authorization: Bearer ongeldig-token
+
+
+### TEST 5 — Verkeerd authenticatieschema
+# Verwacht: 401 Unauthorized
+
+GET http://127.0.0.1:8080/api/v1/users/me
+Authorization: Basic ongeldig-token
+
+
+### TEST 6 — Lege Bearer-tokenwaarde
+# Verwacht: 401 Unauthorized
+
+GET http://127.0.0.1:8080/api/v1/users/me
+Authorization: Bearer
+
+
+### TEST 7 — Refresh token gebruiken als access token
+# Verwacht: 401 Unauthorized
+# Een refresh token is geen JWT.
+# Kopieer het refreshToken uit TEST 1.
+
+GET http://127.0.0.1:8080/api/v1/users/me
+Authorization: Bearer 0bH4FvGd2RmnaRpxunZKhT-qzFFEELIFLjvsqwqVd20
+
+
+### TEST 8 — Publiek endpoint zonder JWT
+# Verwacht: 200 OK
+# De health-route moet openbaar blijven.
+
+GET http://127.0.0.1:8080/api/v1/health

@@ -2,14 +2,15 @@ package nl.brul.api.security
 
 import com.auth0.jwt.JWT
 import com.auth0.jwt.algorithms.Algorithm
+import com.auth0.jwt.interfaces.JWTVerifier
 import nl.brul.api.features.user.model.User
 import java.time.Clock
 import java.util.Date
 
 class JwtService(
     secret: String,
-    private val issuer: String = "brul-api",
-    private val audience: String = "brul-client",
+    val issuer: String = "brul-api",
+    val audience: String = "brul-client",
     private val clock: Clock = Clock.systemUTC()
 ) {
     companion object {
@@ -22,9 +23,11 @@ class JwtService(
         require(secret.toByteArray(Charsets.UTF_8).size >= 32) {
             "BRUL_JWT_SECRET must contain at least 32 UTF-8 bytes."
         }
+
         require(issuer.isNotBlank()) {
             "JWT issuer must not be blank."
         }
+
         require(audience.isNotBlank()) {
             "JWT audience must not be blank."
         }
@@ -41,7 +44,16 @@ class JwtService(
             .withIssuer(issuer)
             .withAudience(audience)
             .withIssuedAt(Date.from(now))
-            .withExpiresAt(Date.from(now.plusSeconds(ACCESS_TOKEN_SECONDS)))
+            .withExpiresAt(
+                Date.from(now.plusSeconds(ACCESS_TOKEN_SECONDS))
+            )
             .sign(algorithm)
+    }
+
+    fun createVerifier(): JWTVerifier {
+        return JWT.require(algorithm)
+            .withIssuer(issuer)
+            .withAudience(audience)
+            .build()
     }
 }
