@@ -5,6 +5,7 @@ import io.ktor.server.application.*
 import io.ktor.server.netty.EngineMain
 import io.ktor.server.plugins.contentnegotiation.*
 import nl.brul.api.common.error.configureErrorHandling
+import nl.brul.api.config.AppConfig
 import nl.brul.api.database.DatabaseFactory
 import nl.brul.api.features.auth.AuthService
 import nl.brul.api.features.auth.repository.ExposedRefreshSessionRepository
@@ -18,29 +19,28 @@ fun main(args: Array<String>) {
 }
 
 fun Application.module() {
-    val jwtSecret = System.getenv("BRUL_JWT_SECRET")
-        ?: error("BRUL_JWT_SECRET is required.")
+    // Centrale configuratie inladen
+    val config = AppConfig.fromEnvironment()
 
-    val jwtIssuer = System.getenv("BRUL_JWT_ISSUER")
-        ?: "brul-api"
-
-    val jwtAudience = System.getenv("BRUL_JWT_AUDIENCE")
-        ?: "brul-client"
-
+    // JWT-service instellen
     val jwtService = JwtService(
-        secret = jwtSecret,
-        issuer = jwtIssuer,
-        audience = jwtAudience
+        secret = config.jwtSecret,
+        issuer = config.jwtIssuer,
+        audience = config.jwtAudience
     )
 
-    DatabaseFactory.init()
+    // Database initialiseren
+    DatabaseFactory.init(config.databasePath)
 
+    // JSON-ondersteuning
     install(ContentNegotiation) {
         json()
     }
 
+    // Centrale foutafhandeling
     configureErrorHandling()
 
+    // Repositories en services
     val userRepository = ExposedUserRepository()
     val passwordHasher = BCryptPasswordHasher()
     val refreshTokenService = RefreshTokenService()
@@ -54,5 +54,6 @@ fun Application.module() {
         refreshSessions = refreshSessionRepository
     )
 
+    // API-routes registreren
     configureRouting(authService)
 }

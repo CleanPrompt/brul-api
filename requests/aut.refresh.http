@@ -1,0 +1,6 @@
+POST http://127.0.0.1:8080/api/v1/auth/refresh
+Content-Type: application/json
+
+{
+  "refreshToken": "y-hOmZs4D2ZFrbRVt7j0A-XJ1HRHdPqXEsZ_xrzWZoA"
+}

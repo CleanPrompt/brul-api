@@ -8,8 +8,10 @@ import java.io.File
 
 object DatabaseFactory {
 
-    fun init() {
-        val databasePath = "./data/brul"
+    fun init(databasePath: String) {
+        require(databasePath.isNotBlank()) {
+            "Database path must not be blank."
+        }
 
         File(databasePath).absoluteFile.parentFile?.mkdirs()
 

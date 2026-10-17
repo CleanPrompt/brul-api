@@ -3,13 +3,14 @@ package nl.brul.api.common.error
 import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.JsonConvertException
 import io.ktor.server.application.Application
+import io.ktor.server.application.install
+import io.ktor.server.application.log
 import io.ktor.server.plugins.BadRequestException
 import io.ktor.server.plugins.statuspages.StatusPages
 import io.ktor.server.response.respond
-import io.ktor.server.application.install
-import io.ktor.server.application.log
 import kotlinx.serialization.SerializationException
 import nl.brul.api.features.auth.InvalidCredentialsException
+import nl.brul.api.features.user.repository.DuplicateEmailException
 
 fun Application.configureErrorHandling() {
     install(StatusPages) {
@@ -21,6 +22,16 @@ fun Application.configureErrorHandling() {
                     code = cause.code,
                     message = cause.message,
                     details = cause.details
+                )
+            )
+        }
+
+        exception<DuplicateEmailException> { call, _ ->
+            call.respond(
+                HttpStatusCode.Conflict,
+                ApiError(
+                    code = "EMAIL_ALREADY_EXISTS",
+                    message = "An account with this email address already exists."
                 )
             )
         }

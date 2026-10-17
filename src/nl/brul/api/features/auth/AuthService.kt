@@ -1,7 +1,11 @@
 package nl.brul.api.features.auth
 
+import io.ktor.http.HttpStatusCode
+import nl.brul.api.common.error.AppException
+import nl.brul.api.features.auth.dto.AccessTokenResponse
 import nl.brul.api.features.auth.dto.LoginRequest
 import nl.brul.api.features.auth.dto.LoginResponse
+import nl.brul.api.features.auth.dto.RefreshRequest
 import nl.brul.api.features.auth.dto.RegisterRequest
 import nl.brul.api.features.auth.repository.RefreshSessionRepository
 import nl.brul.api.features.user.dto.UserResponse
@@ -38,8 +42,12 @@ class AuthService(
             "Invalid password length."
         }
 
-        require(users.findByEmail(email) == null) {
-            "Email already exists."
+        if (users.findByEmail(email) != null) {
+            throw AppException(
+                status = HttpStatusCode.Conflict,
+                code = "EMAIL_ALREADY_EXISTS",
+                message = "An account with this email address already exists."
+            )
         }
 
         val passwordHash = passwordHasher.hash(password)
@@ -62,7 +70,8 @@ class AuthService(
 
         val user = users.findByEmail(email)
 
-        if (user == null ||
+        if (
+            user == null ||
             !passwordHasher.verify(password, user.passwordHash)
         ) {
             throw InvalidCredentialsException()
@@ -82,6 +91,49 @@ class AuthService(
         return LoginResponse(
             accessToken = jwtService.createAccessToken(user),
             refreshToken = refreshToken
+        )
+    }
+
+    fun refresh(request: RefreshRequest): AccessTokenResponse {
+        require(request.refreshToken.isNotBlank()) {
+            "Refresh token must not be blank."
+        }
+
+        val tokenHash = refreshTokenService.hash(request.refreshToken)
+
+        val accessToken = refreshSessions.issueAccessTokenIfValid(
+            tokenHash = tokenHash,
+            now = Instant.now(),
+            issueToken = jwtService::createAccessToken
+        ) ?: throw invalidRefreshToken()
+
+        return AccessTokenResponse(
+            accessToken = accessToken
+        )
+    }
+
+    fun logout(request: RefreshRequest) {
+        require(request.refreshToken.isNotBlank()) {
+            "Refresh token must not be blank."
+        }
+
+        val tokenHash = refreshTokenService.hash(request.refreshToken)
+
+        val revoked = refreshSessions.revokeIfValid(
+            tokenHash = tokenHash,
+            now = Instant.now()
+        )
+
+        if (!revoked) {
+            throw invalidRefreshToken()
+        }
+    }
+
+    private fun invalidRefreshToken(): AppException {
+        return AppException(
+            status = HttpStatusCode.Unauthorized,
+            code = "INVALID_REFRESH_TOKEN",
+            message = "Invalid or expired refresh token."
         )
     }
 }

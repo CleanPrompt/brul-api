@@ -5,7 +5,7 @@ import org.jetbrains.exposed.sql.javatime.timestamp
 
 object UsersTable : Table("users") {
     val id = long("id").autoIncrement()
-    val email = varchar("email", 320).uniqueIndex()
+    val email = varchar("email", 254).uniqueIndex()
     val passwordHash = varchar("password_hash", 60)
     val role = varchar("role", 10)
     val createdAt = timestamp("created_at")

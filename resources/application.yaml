@@ -1,6 +1,8 @@
 ktor:
+  deployment:
+    host: 0.0.0.0
+    port: "$BRUL_PORT:8080"
+
   application:
     modules:
       - nl.brul.api.ApplicationKt.module
-  deployment:
-    port: 8080
