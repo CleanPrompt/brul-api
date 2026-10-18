@@ -1,0 +1,656 @@
+
+# http/09-search-filter-sort.http
+
+@baseUrl = http://127.0.0.1:8080/api/v1
+
+### 01 - Inloggen als eigenaar
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "http-test-01@brul.nl",
+  "password": "Welkom123!"
+}
+
+> {%
+    client.test("Inloggen werkt", function() {
+        client.assert(response.status === 200);
+    });
+
+    if (response.status === 200) {
+        client.global.set("searchOwnerToken", response.body.accessToken);
+    }
+%}
+
+### 02 - Inloggen als stemmer
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "http-vote-test@brul.nl",
+  "password": "Welkom123!"
+}
+
+> {%
+    client.test("Stemmer ingelogd", function() {
+        client.assert(response.status === 200);
+    });
+
+    if (response.status === 200) {
+        client.global.set("searchVoterToken", response.body.accessToken);
+    }
+%}
+
+### 03 - Melding A: dichtbij, SAFETY
+POST {{baseUrl}}/reports
+Authorization: Bearer {{searchOwnerToken}}
+Content-Type: application/json
+
+{
+  "type": "SAFETY",
+  "category": "THEFT",
+  "title": "Zoektest unieke fiets gestolen",
+  "description": "Een blauwe fiets is verdwenen bij de fietsenstalling.",
+  "latitude": 52.001,
+  "longitude": 4.213
+}
+
+> {%
+    client.test("Melding A aangemaakt", function() {
+        client.assert(response.status === 201);
+    });
+
+    if (response.status === 201) {
+        client.global.set("searchReportA", response.body.id);
+    }
+%}
+
+### 04 - Melding B: ongeveer 1 kilometer verder
+POST {{baseUrl}}/reports
+Authorization: Bearer {{searchOwnerToken}}
+Content-Type: application/json
+
+{
+  "type": "NUISANCE",
+  "category": "NOISE",
+  "title": "Zoektest unieke geluidsoverlast",
+  "description": "Er is elke avond veel lawaai in deze straat.",
+  "latitude": 52.010,
+  "longitude": 4.213
+}
+
+> {%
+    client.test("Melding B aangemaakt", function() {
+        client.assert(response.status === 201);
+    });
+
+    if (response.status === 201) {
+        client.global.set("searchReportB", response.body.id);
+    }
+%}
+
+### 05 - Melding C: ver weg, HELP_REQUEST
+POST {{baseUrl}}/reports
+Authorization: Bearer {{searchOwnerToken}}
+Content-Type: application/json
+
+{
+  "type": "HELP_REQUEST",
+  "category": "GROCERIES",
+  "title": "Zoektest unieke boodschappenhulp",
+  "description": "Ik zoek hulp bij het ophalen van boodschappen.",
+  "latitude": 52.100,
+  "longitude": 4.213,
+  "maxHelpers": 2
+}
+
+> {%
+    client.test("Melding C aangemaakt", function() {
+        client.assert(response.status === 201);
+    });
+
+    if (response.status === 201) {
+        client.global.set("searchReportC", response.body.id);
+    }
+%}
+
+### 06 - Melding D: dichtbij, SAFETY
+POST {{baseUrl}}/reports
+Authorization: Bearer {{searchOwnerToken}}
+Content-Type: application/json
+
+{
+  "type": "SAFETY",
+  "category": "TRAFFIC_SAFETY",
+  "title": "Zoektest unieke verkeerssituatie",
+  "description": "Een gevaarlijke verkeerssituatie bij het kruispunt.",
+  "latitude": 52.002,
+  "longitude": 4.213
+}
+
+> {%
+    client.test("Melding D aangemaakt", function() {
+        client.assert(response.status === 201);
+    });
+
+    if (response.status === 201) {
+        client.global.set("searchReportD", response.body.id);
+    }
+%}
+
+### 07 - LIKE plaatsen op melding B
+PUT {{baseUrl}}/reports/{{searchReportB}}/vote
+Authorization: Bearer {{searchVoterToken}}
+Content-Type: application/json
+
+{
+  "value": "LIKE"
+}
+
+> {%
+    client.test("LIKE op B geplaatst", function() {
+        client.assert(response.status === 200);
+        client.assert(response.body.likeCount === 1);
+    });
+%}
+
+### 08 - Extra weergave voor melding A
+GET {{baseUrl}}/reports/{{searchReportA}}
+
+> {%
+    client.test("Detail A werkt", function() {
+        client.assert(response.status === 200);
+        client.assert(response.body.viewCount >= 1);
+    });
+%}
+
+### 09 - Nog een weergave voor melding A
+GET {{baseUrl}}/reports/{{searchReportA}}
+
+> {%
+    client.test("ViewCount wordt verhoogd", function() {
+        client.assert(response.status === 200);
+        client.assert(response.body.viewCount >= 2);
+    });
+%}
+
+### 10 - Alle meldingen ophalen
+GET {{baseUrl}}/reports
+
+> {%
+    client.test("Alle meldingen worden opgehaald", function() {
+        client.assert(response.status === 200);
+        client.assert(Array.isArray(response.body));
+
+        var ids = response.body.map(function(item) {
+            return item.id;
+        });
+
+        client.assert(ids.includes(Number(client.global.get("searchReportA"))));
+        client.assert(ids.includes(Number(client.global.get("searchReportB"))));
+        client.assert(ids.includes(Number(client.global.get("searchReportC"))));
+        client.assert(ids.includes(Number(client.global.get("searchReportD"))));
+    });
+%}
+
+### 11 - Zoeken op titel
+GET {{baseUrl}}/reports?q=verkeerssituatie
+
+> {%
+    client.test("Zoeken op titel werkt", function() {
+        client.assert(response.status === 200);
+
+        var found = response.body.some(function(item) {
+            return item.id === Number(client.global.get("searchReportD"));
+        });
+
+        client.assert(found);
+    });
+%}
+
+### 12 - Zoeken op beschrijving
+GET {{baseUrl}}/reports?q=fietsenstalling
+
+> {%
+    client.test("Zoeken op beschrijving werkt", function() {
+        client.assert(response.status === 200);
+
+        var found = response.body.some(function(item) {
+            return item.id === Number(client.global.get("searchReportA"));
+        });
+
+        client.assert(found);
+    });
+%}
+
+### 13 - Zoeken is niet hoofdlettergevoelig
+GET {{baseUrl}}/reports?q=VERKEERSSITUATIE
+
+> {%
+    client.test("Zoeken negeert hoofdletters", function() {
+        client.assert(response.status === 200);
+
+        var found = response.body.some(function(item) {
+            return item.id === Number(client.global.get("searchReportD"));
+        });
+
+        client.assert(found);
+    });
+%}
+
+### 14 - Filteren op SAFETY
+GET {{baseUrl}}/reports?type=SAFETY
+
+> {%
+    client.test("Typefilter SAFETY", function() {
+        client.assert(response.status === 200);
+        client.assert(response.body.length >= 2);
+
+        client.assert(response.body.every(function(item) {
+            return item.type === "SAFETY";
+        }));
+    });
+%}
+
+### 15 - Filteren op HELP_REQUEST
+GET {{baseUrl}}/reports?type=HELP_REQUEST
+
+> {%
+    client.test("Typefilter HELP_REQUEST", function() {
+        client.assert(response.status === 200);
+
+        client.assert(response.body.every(function(item) {
+            return item.type === "HELP_REQUEST";
+        }));
+
+        client.assert(response.body.some(function(item) {
+            return item.id === Number(client.global.get("searchReportC"));
+        }));
+    });
+%}
+
+### 16 - Filteren op categorie NOISE
+GET {{baseUrl}}/reports?category=NOISE
+
+> {%
+    client.test("Categoriefilter NOISE", function() {
+        client.assert(response.status === 200);
+
+        client.assert(response.body.every(function(item) {
+            return item.category === "NOISE";
+        }));
+
+        client.assert(response.body.some(function(item) {
+            return item.id === Number(client.global.get("searchReportB"));
+        }));
+    });
+%}
+
+### 17 - Type en categorie combineren
+GET {{baseUrl}}/reports?type=SAFETY&category=THEFT
+
+> {%
+    client.test("Gecombineerd filter werkt", function() {
+        client.assert(response.status === 200);
+
+        client.assert(response.body.every(function(item) {
+            return item.type === "SAFETY" &&
+                item.category === "THEFT";
+        }));
+
+        client.assert(response.body.some(function(item) {
+            return item.id === Number(client.global.get("searchReportA"));
+        }));
+    });
+%}
+
+### 18 - Ongeldige combinatie type en categorie
+GET {{baseUrl}}/reports?type=SAFETY&category=GROCERIES
+
+> {%
+    client.test("Ongeldige combinatie geeft 400", function() {
+        client.assert(response.status === 400);
+        client.assert(response.body.code === "VALIDATION_ERROR");
+    });
+%}
+
+### 19 - Ongeldig type
+GET {{baseUrl}}/reports?type=ALIEN
+
+> {%
+    client.test("Ongeldig type geeft 400", function() {
+        client.assert(response.status === 400);
+    });
+%}
+
+### 20 - Ongeldige categorie
+GET {{baseUrl}}/reports?category=UNKNOWN
+
+> {%
+    client.test("Ongeldige categorie geeft 400", function() {
+        client.assert(response.status === 400);
+    });
+%}
+
+### 21 - Sorteren op nieuwste
+GET {{baseUrl}}/reports?sort=newest
+
+> {%
+    client.test("Nieuwste eerst", function() {
+        client.assert(response.status === 200);
+
+        for (var i = 1; i < response.body.length; i++) {
+            var previous = response.body[i - 1];
+            var current = response.body[i];
+
+            client.assert(
+                Date.parse(previous.createdAt) >=
+                Date.parse(current.createdAt)
+            );
+        }
+    });
+%}
+
+### 22 - Sorteren op meeste likes
+GET {{baseUrl}}/reports?sort=mostLiked
+
+> {%
+    client.test("Meeste likes eerst", function() {
+        client.assert(response.status === 200);
+
+        for (var i = 1; i < response.body.length; i++) {
+            client.assert(
+                response.body[i - 1].likeCount >=
+                response.body[i].likeCount
+            );
+        }
+    });
+%}
+
+### 23 - Sorteren op meeste weergaven
+GET {{baseUrl}}/reports?sort=mostViewed
+
+> {%
+    client.test("Meeste weergaven eerst", function() {
+        client.assert(response.status === 200);
+
+        for (var i = 1; i < response.body.length; i++) {
+            client.assert(
+                response.body[i - 1].viewCount >=
+                response.body[i].viewCount
+            );
+        }
+    });
+%}
+
+### 24 - Geografisch zoeken binnen 5 kilometer
+GET {{baseUrl}}/reports?latitude=52.001&longitude=4.213&radiusKm=5
+
+> {%
+    client.test("Radiusfilter van 5 km werkt", function() {
+        client.assert(response.status === 200);
+
+        client.assert(response.body.every(function(item) {
+            return item.distanceKm !== null &&
+                item.distanceKm <= 5;
+        }));
+
+        var ids = response.body.map(function(item) {
+            return item.id;
+        });
+
+        client.assert(ids.includes(Number(client.global.get("searchReportA"))));
+        client.assert(ids.includes(Number(client.global.get("searchReportB"))));
+        client.assert(ids.includes(Number(client.global.get("searchReportD"))));
+        client.assert(!ids.includes(Number(client.global.get("searchReportC"))));
+    });
+%}
+
+### 25 - Sorteren op afstand
+GET {{baseUrl}}/reports?latitude=52.001&longitude=4.213&sort=nearest
+
+> {%
+    client.test("Dichtstbijzijnde meldingen eerst", function() {
+        client.assert(response.status === 200);
+
+        for (var i = 1; i < response.body.length; i++) {
+            client.assert(
+                response.body[i - 1].distanceKm <=
+                response.body[i].distanceKm
+            );
+        }
+    });
+%}
+
+### 26 - Exact dezelfde locatie geeft afstand nul
+GET {{baseUrl}}/reports?type=SAFETY&category=THEFT&latitude=52.001&longitude=4.213&sort=nearest
+
+> {%
+    client.test("Afstand tot eigen locatie is nul", function() {
+        client.assert(response.status === 200);
+
+        var report = response.body.find(function(item) {
+            return item.id === Number(client.global.get("searchReportA"));
+        });
+
+        client.assert(report !== undefined);
+        client.assert(Math.abs(report.distanceKm) < 0.001);
+    });
+%}
+
+### 27 - Afstand ongeveer één kilometer
+GET {{baseUrl}}/reports?q=zoektest&latitude=52.001&longitude=4.213&sort=nearest
+
+> {%
+    client.test("Haversine-afstand is ongeveer correct", function() {
+        client.assert(response.status === 200);
+
+        var report = response.body.find(function(item) {
+            return item.id === Number(client.global.get("searchReportB"));
+        });
+
+        client.assert(report !== undefined);
+        client.assert(report.distanceKm > 0.9);
+        client.assert(report.distanceKm < 1.1);
+    });
+%}
+
+### 28 - Gecombineerd zoeken, filteren en afstand
+GET {{baseUrl}}/reports?type=SAFETY&latitude=52.001&longitude=4.213&radiusKm=5&sort=nearest
+
+> {%
+    client.test("Gecombineerde filters werken", function() {
+        client.assert(response.status === 200);
+
+        client.assert(response.body.every(function(item) {
+            return item.type === "SAFETY" &&
+                item.distanceKm <= 5;
+        }));
+
+        for (var i = 1; i < response.body.length; i++) {
+            client.assert(
+                response.body[i - 1].distanceKm <=
+                response.body[i].distanceKm
+            );
+        }
+    });
+%}
+
+### 29 - Alleen latitude opgegeven
+GET {{baseUrl}}/reports?latitude=52.001
+
+> {%
+    client.test("Latitude zonder longitude geeft 400", function() {
+        client.assert(response.status === 400);
+        client.assert(response.body.code === "VALIDATION_ERROR");
+    });
+%}
+
+### 30 - Alleen longitude opgegeven
+GET {{baseUrl}}/reports?longitude=4.213
+
+> {%
+    client.test("Longitude zonder latitude geeft 400", function() {
+        client.assert(response.status === 400);
+    });
+%}
+
+### 31 - Radius zonder coördinaten
+GET {{baseUrl}}/reports?radiusKm=5
+
+> {%
+    client.test("Radius zonder locatie geeft 400", function() {
+        client.assert(response.status === 400);
+    });
+%}
+
+### 32 - Radius groter dan 25 km
+GET {{baseUrl}}/reports?latitude=52.001&longitude=4.213&radiusKm=30
+
+> {%
+    client.test("Radius boven 25 km geeft 400", function() {
+        client.assert(response.status === 400);
+    });
+%}
+
+### 33 - Radius nul
+GET {{baseUrl}}/reports?latitude=52.001&longitude=4.213&radiusKm=0
+
+> {%
+    client.test("Radius nul geeft 400", function() {
+        client.assert(response.status === 400);
+    });
+%}
+
+### 34 - Ongeldige latitude
+GET {{baseUrl}}/reports?latitude=100&longitude=4.213
+
+> {%
+    client.test("Latitude boven 90 geeft 400", function() {
+        client.assert(response.status === 400);
+    });
+%}
+
+### 35 - Ongeldige longitude
+GET {{baseUrl}}/reports?latitude=52.001&longitude=200
+
+> {%
+    client.test("Longitude boven 180 geeft 400", function() {
+        client.assert(response.status === 400);
+    });
+%}
+
+### 36 - Geen numerieke coördinaten
+GET {{baseUrl}}/reports?latitude=abc&longitude=xyz
+
+> {%
+    client.test("Tekst als coördinaten geeft 400", function() {
+        client.assert(response.status === 400);
+    });
+%}
+
+### 37 - Nearest zonder coördinaten
+GET {{baseUrl}}/reports?sort=nearest
+
+> {%
+    client.test("Nearest zonder locatie geeft 400", function() {
+        client.assert(response.status === 400);
+    });
+%}
+
+### 38 - Ongeldige sorteerwaarde
+GET {{baseUrl}}/reports?sort=popular
+
+> {%
+    client.test("Ongeldige sorteerwaarde geeft 400", function() {
+        client.assert(response.status === 400);
+    });
+%}
+
+### 39 - Lege sorteerwaarde
+GET {{baseUrl}}/reports?sort=
+
+> {%
+    client.test("Lege sorteerwaarde geeft 400", function() {
+        client.assert(response.status === 400);
+    });
+%}
+
+### 40 - Onbekende queryparameter
+GET {{baseUrl}}/reports?randomField=123
+
+> {%
+    client.test("Onbekende parameter geeft 400", function() {
+        client.assert(response.status === 400);
+    });
+%}
+
+### 41 - Dubbele queryparameter
+GET {{baseUrl}}/reports?sort=newest&sort=mostLiked
+
+> {%
+    client.test("Dubbele parameter geeft 400", function() {
+        client.assert(response.status === 400);
+    });
+%}
+
+### 42 - Zoekterm zonder resultaten
+GET {{baseUrl}}/reports?q=xyzbrulgeentestresultaat999999
+
+> {%
+    client.test("Geen resultaten geeft lege array", function() {
+        client.assert(response.status === 200);
+        client.assert(Array.isArray(response.body));
+        client.assert(response.body.length === 0);
+    });
+%}
+
+### 43 - Geen coördinaten betekent distanceKm null
+GET {{baseUrl}}/reports?q=verkeerssituatie
+
+> {%
+    client.test("Zonder locatie is distanceKm null", function() {
+        client.assert(response.status === 200);
+
+        client.assert(response.body.every(function(item) {
+            return item.distanceKm === null;
+        }));
+    });
+%}
+
+### 44 - Combinatie tekst en categorie
+GET {{baseUrl}}/reports?q=zoektest&category=GROCERIES
+
+> {%
+    client.test("Tekst en categorie gecombineerd", function() {
+        client.assert(response.status === 200);
+
+        client.assert(response.body.some(function(item) {
+            return item.id === Number(client.global.get("searchReportC"));
+        }));
+
+        client.assert(response.body.every(function(item) {
+            return item.category === "GROCERIES";
+        }));
+    });
+%}
+
+### 45 - Alle resultaten blijven geldig
+GET {{baseUrl}}/reports?sort=newest
+
+> {%
+    client.test("Resultaten hebben de juiste velden", function() {
+        client.assert(response.status === 200);
+
+        response.body.forEach(function(item) {
+            client.assert(typeof item.id === "number");
+            client.assert(typeof item.title === "string");
+            client.assert(typeof item.type === "string");
+            client.assert(typeof item.category === "string");
+            client.assert(typeof item.viewCount === "number");
+            client.assert(typeof item.likeCount === "number");
+            client.assert(typeof item.dislikeCount === "number");
+            client.assert(typeof item.createdAt === "string");
+        });
+    });
+%}

@@ -1,0 +1,433 @@
+
+# http/10-security-validation.http
+
+@baseUrl = http://127.0.0.1:8080/api/v1
+
+### 01 - Inloggen als eigenaar
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "http-test-01@brul.nl",
+  "password": "Welkom123!"
+}
+
+> {%
+    client.test("Eigenaar kan inloggen", function() {
+        client.assert(response.status === 200);
+        client.global.set("securityOwnerToken", response.body.accessToken);
+    });
+%}
+
+### 02 - Inloggen als tweede gebruiker
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "http-vote-test@brul.nl",
+  "password": "Welkom123!"
+}
+
+> {%
+    client.test("Tweede gebruiker kan inloggen", function() {
+        client.assert(response.status === 200);
+        client.global.set("securityOtherToken", response.body.accessToken);
+    });
+%}
+
+### 03 - Hulpvraag aanmaken
+POST {{baseUrl}}/reports
+Authorization: Bearer {{securityOwnerToken}}
+Content-Type: application/json
+
+{
+  "type": "HELP_REQUEST",
+  "category": "GROCERIES",
+  "title": "Beveiligingstest boodschappen",
+  "description": "Een hulpvraag voor het testen van toegangsrechten.",
+  "latitude": 52.001,
+  "longitude": 4.213,
+  "maxHelpers": 1
+}
+
+> {%
+    client.test("Testhulpvraag aangemaakt", function() {
+        client.assert(response.status === 201);
+        client.global.set("securityReportId", response.body.id);
+    });
+%}
+
+### 04 - Melding aanmaken zonder JWT
+POST {{baseUrl}}/reports
+Content-Type: application/json
+
+{
+  "type": "SAFETY",
+  "category": "THEFT",
+  "title": "Zonder toegang",
+  "description": "Deze melding mag niet worden aangemaakt.",
+  "latitude": 52.001,
+  "longitude": 4.213
+}
+
+> {%
+    client.test("Zonder JWT: 401", function() {
+        client.assert(response.status === 401);
+    });
+%}
+
+### 05 - Ongeldige JWT
+GET {{baseUrl}}/users/me
+Authorization: Bearer dit-is-geen-geldige-jwt
+
+> {%
+    client.test("Ongeldige JWT: 401", function() {
+        client.assert(response.status === 401);
+    });
+%}
+
+### 06 - Publiek zoeken zonder JWT
+GET {{baseUrl}}/reports?type=HELP_REQUEST
+
+> {%
+    client.test("Publieke zoekfunctie: 200", function() {
+        client.assert(response.status === 200);
+    });
+%}
+
+### 07 - Publiek zoeken met ongeldige Authorization-header
+GET {{baseUrl}}/reports?type=HELP_REQUEST
+Authorization: Bearer dit-is-geen-geldige-jwt
+
+> {%
+    client.test("Publieke route negeert ongeldige JWT", function() {
+        client.assert(response.status === 200);
+    });
+%}
+
+### 08 - Andere gebruiker mag titel niet aanpassen
+PATCH {{baseUrl}}/reports/{{securityReportId}}
+Authorization: Bearer {{securityOtherToken}}
+Content-Type: application/json
+
+{
+  "title": "Ongeoorloofd aangepast"
+}
+
+> {%
+    client.test("Geen eigenaar: 403", function() {
+        client.assert(response.status === 403);
+        client.assert(response.body.code === "FORBIDDEN");
+    });
+%}
+
+### 09 - Andere gebruiker mag capaciteit niet wijzigen
+PATCH {{baseUrl}}/help-requests/{{securityReportId}}/capacity
+Authorization: Bearer {{securityOtherToken}}
+Content-Type: application/json
+
+{
+  "maxHelpers": 5
+}
+
+> {%
+    client.test("Geen eigenaar: 403", function() {
+        client.assert(response.status === 403);
+    });
+%}
+
+### 10 - Andere gebruiker mag hulpvraag niet sluiten
+POST {{baseUrl}}/help-requests/{{securityReportId}}/close
+Authorization: Bearer {{securityOtherToken}}
+
+> {%
+    client.test("Geen eigenaar: 403", function() {
+        client.assert(response.status === 403);
+    });
+%}
+
+### 11 - Onbekend veld bij aanmaken
+POST {{baseUrl}}/reports
+Authorization: Bearer {{securityOwnerToken}}
+Content-Type: application/json
+
+{
+  "type": "SAFETY",
+  "category": "THEFT",
+  "title": "Onbekend veld test",
+  "description": "Deze melding heeft een extra verboden veld.",
+  "latitude": 52.001,
+  "longitude": 4.213,
+  "isAdmin": true
+}
+
+> {%
+    client.test("Onbekend veld: 400 VALIDATION_ERROR", function() {
+        client.assert(response.status === 400);
+        client.assert(response.body.code === "VALIDATION_ERROR");
+    });
+%}
+
+### 12 - Verkeerd JSON-type voor latitude
+POST {{baseUrl}}/reports
+Authorization: Bearer {{securityOwnerToken}}
+Content-Type: application/json
+
+{
+  "type": "SAFETY",
+  "category": "THEFT",
+  "title": "Verkeerd datatype",
+  "description": "De latitude is een tekst in plaats van een getal.",
+  "latitude": "52.001",
+  "longitude": 4.213
+}
+
+> {%
+    client.test("Verkeerd datatype: 400", function() {
+        client.assert(response.status === 400);
+    });
+%}
+
+### 13 - Ongeldige JSON-syntaxis
+POST {{baseUrl}}/reports
+Authorization: Bearer {{securityOwnerToken}}
+Content-Type: application/json
+
+{
+  "type": "SAFETY",
+  "category": "THEFT",
+  "title": "Ongeldige JSON",
+  "description": "Deze JSON mist een komma."
+  "latitude": 52.001,
+  "longitude": 4.213
+}
+
+> {%
+    client.test("Ongeldige JSON: 400", function() {
+        client.assert(response.status === 400);
+    });
+%}
+
+### 14 - Dubbele JSON-sleutel bij aanmaken
+POST {{baseUrl}}/reports
+Authorization: Bearer {{securityOwnerToken}}
+Content-Type: application/json
+
+{
+  "type": "SAFETY",
+  "category": "THEFT",
+  "title": "Dubbele sleutel test",
+  "title": "Deze tweede titel mag niet winnen",
+  "description": "Een dubbele JSON-sleutel moet worden afgewezen.",
+  "latitude": 52.001,
+  "longitude": 4.213
+}
+
+> {%
+    client.test("Dubbele JSON-sleutel: 400", function() {
+        client.assert(response.status === 400);
+        client.assert(response.body.code === "VALIDATION_ERROR");
+    });
+%}
+
+### 15 - Dubbele JSON-sleutel bij stemmen
+PUT {{baseUrl}}/reports/{{securityReportId}}/vote
+Authorization: Bearer {{securityOtherToken}}
+Content-Type: application/json
+
+{
+  "value": "LIKE",
+  "value": "DISLIKE"
+}
+
+> {%
+    client.test("Dubbele stemwaarde: 400", function() {
+        client.assert(response.status === 400);
+        client.assert(response.body.code === "VALIDATION_ERROR");
+    });
+%}
+
+### 16 - Body bij endpoint zonder requestbody
+POST {{baseUrl}}/help-requests/{{securityReportId}}/close
+Authorization: Bearer {{securityOwnerToken}}
+Content-Type: application/json
+
+{
+  "extra": true
+}
+
+> {%
+    client.test("Onverwachte body: 400", function() {
+        client.assert(response.status === 400);
+        client.assert(response.body.code === "VALIDATION_ERROR");
+    });
+%}
+
+### 17 - JSON null bij endpoint zonder requestbody
+POST {{baseUrl}}/help-requests/{{securityReportId}}/close
+Authorization: Bearer {{securityOwnerToken}}
+Content-Type: application/json
+
+null
+
+> {%
+    client.test("JSON null als body: 400", function() {
+        client.assert(response.status === 400);
+    });
+%}
+
+### 18 - MaxHelpers als decimaal getal
+PATCH {{baseUrl}}/help-requests/{{securityReportId}}/capacity
+Authorization: Bearer {{securityOwnerToken}}
+Content-Type: application/json
+
+{
+  "maxHelpers": 1.5
+}
+
+> {%
+    client.test("Decimale capaciteit: 400", function() {
+        client.assert(response.status === 400);
+    });
+%}
+
+### 19 - MaxHelpers als tekst
+PATCH {{baseUrl}}/help-requests/{{securityReportId}}/capacity
+Authorization: Bearer {{securityOwnerToken}}
+Content-Type: application/json
+
+{
+  "maxHelpers": "2"
+}
+
+> {%
+    client.test("Capaciteit als tekst: 400", function() {
+        client.assert(response.status === 400);
+    });
+%}
+
+### 20 - Onbekend veld bij capaciteit
+PATCH {{baseUrl}}/help-requests/{{securityReportId}}/capacity
+Authorization: Bearer {{securityOwnerToken}}
+Content-Type: application/json
+
+{
+  "maxHelpers": 2,
+  "status": "OPEN"
+}
+
+> {%
+    client.test("Verboden capaciteitsveld: 400", function() {
+        client.assert(response.status === 400);
+    });
+%}
+
+### 21 - Lege PATCH
+PATCH {{baseUrl}}/reports/{{securityReportId}}
+Authorization: Bearer {{securityOwnerToken}}
+Content-Type: application/json
+
+{}
+
+> {%
+    client.test("Lege PATCH: 400", function() {
+        client.assert(response.status === 400);
+    });
+%}
+
+### 22 - Onbekend veld bij PATCH
+PATCH {{baseUrl}}/reports/{{securityReportId}}
+Authorization: Bearer {{securityOwnerToken}}
+Content-Type: application/json
+
+{
+  "viewCount": 999999
+}
+
+> {%
+    client.test("Verboden wijziging viewCount: 400", function() {
+        client.assert(response.status === 400);
+    });
+%}
+
+### 23 - Tweede gebruiker meldt zich aan
+POST {{baseUrl}}/help-requests/{{securityReportId}}/participants
+Authorization: Bearer {{securityOtherToken}}
+
+> {%
+    client.test("Deelnemen: 201, status FULL", function() {
+        client.assert(response.status === 201);
+        client.assert(response.body.participantCount === 1);
+        client.assert(response.body.status === "FULL");
+    });
+%}
+
+### 24 - Capaciteit mag niet lager dan actieve deelnemers
+PATCH {{baseUrl}}/help-requests/{{securityReportId}}/capacity
+Authorization: Bearer {{securityOwnerToken}}
+Content-Type: application/json
+
+{
+  "maxHelpers": 0
+}
+
+> {%
+    client.test("Capaciteit nul: 400", function() {
+        client.assert(response.status === 400);
+    });
+%}
+
+### 25 - Tweede gebruiker meldt zich af
+DELETE {{baseUrl}}/help-requests/{{securityReportId}}/participants/me
+Authorization: Bearer {{securityOtherToken}}
+
+> {%
+    client.test("Afmelden: 204", function() {
+        client.assert(response.status === 204);
+    });
+%}
+
+### 26 - Dezelfde gebruiker mag opnieuw deelnemen
+POST {{baseUrl}}/help-requests/{{securityReportId}}/participants
+Authorization: Bearer {{securityOtherToken}}
+
+> {%
+    client.test("Opnieuw deelnemen: 201", function() {
+        client.assert(response.status === 201);
+        client.assert(response.body.participantCount === 1);
+    });
+%}
+
+### 27 - Er is precies één actieve deelname
+GET {{baseUrl}}/help-requests/{{securityReportId}}/participants
+
+> {%
+    client.test("Precies één actieve deelnemer", function() {
+        client.assert(response.status === 200);
+        client.assert(Array.isArray(response.body));
+        client.assert(response.body.length === 1);
+    });
+%}
+
+### 28 - Dubbel deelnemen blijft verboden
+POST {{baseUrl}}/help-requests/{{securityReportId}}/participants
+Authorization: Bearer {{securityOtherToken}}
+
+> {%
+    client.test("Dubbele actieve deelname: 409", function() {
+        client.assert(response.status === 409);
+        client.assert(response.body.code === "ALREADY_PARTICIPATING");
+    });
+%}
+
+### 29 - Hulpvraag blijft ongewijzigd na afgewezen verzoeken
+GET {{baseUrl}}/reports/{{securityReportId}}
+
+> {%
+    client.test("Capaciteit en status zijn intact", function() {
+        client.assert(response.status === 200);
+        client.assert(response.body.maxHelpers === 1);
+        client.assert(response.body.participantCount === 1);
+        client.assert(response.body.status === "FULL");
+    });
+%}

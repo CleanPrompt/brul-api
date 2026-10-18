@@ -1,5 +1,5 @@
-// src/nl/brul/api/Application.kt
 
+// src/nl/brul/api/Application.kt
 package nl.brul.api
 
 import io.ktor.serialization.kotlinx.json.json
@@ -12,6 +12,8 @@ import nl.brul.api.config.AppConfig
 import nl.brul.api.database.DatabaseFactory
 import nl.brul.api.features.auth.AuthService
 import nl.brul.api.features.auth.repository.ExposedRefreshSessionRepository
+import nl.brul.api.features.help.HelpService
+import nl.brul.api.features.help.repository.ExposedHelpRepository
 import nl.brul.api.features.report.ReportService
 import nl.brul.api.features.report.repository.ExposedReportRepository
 import nl.brul.api.features.user.repository.ExposedUserRepository
@@ -53,6 +55,7 @@ fun Application.module() {
     val refreshSessionRepository = ExposedRefreshSessionRepository()
     val reportRepository = ExposedReportRepository()
     val voteRepository = ExposedVoteRepository()
+    val helpRepository = ExposedHelpRepository()
 
     val passwordHasher = BCryptPasswordHasher()
     val refreshTokenService = RefreshTokenService()
@@ -73,6 +76,10 @@ fun Application.module() {
         votes = voteRepository
     )
 
+    val helpService = HelpService(
+        helps = helpRepository
+    )
+
     configureJwtAuthentication(
         jwtService = jwtService,
         users = userRepository
@@ -81,6 +88,7 @@ fun Application.module() {
     configureRouting(
         authService = authService,
         reportService = reportService,
-        voteService = voteService
+        voteService = voteService,
+        helpService = helpService
     )
 }

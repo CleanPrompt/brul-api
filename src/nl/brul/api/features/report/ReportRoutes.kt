@@ -1,35 +1,25 @@
-// src/nl/brul/api/features/report/ReportRoutes.kt
 
+// src/nl/brul/api/features/report/ReportRoutes.kt
 package nl.brul.api.features.report
 
-import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.auth.authenticate
 import io.ktor.server.auth.principal
-import io.ktor.server.request.contentType
-import io.ktor.server.request.receiveText
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.delete
 import io.ktor.server.routing.get
 import io.ktor.server.routing.patch
 import io.ktor.server.routing.post
-import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.double
 import kotlinx.serialization.json.decodeFromJsonElement
 import nl.brul.api.common.error.AppException
+import nl.brul.api.common.validation.StrictJson
 import nl.brul.api.features.report.dto.CreateReportRequest
 import nl.brul.api.features.user.model.Role
 import nl.brul.api.security.AuthenticatedUser
-
-private val requestJson = Json {
-    ignoreUnknownKeys = false
-    isLenient = false
-    coerceInputValues = false
-}
 
 private val createFields = setOf(
     "type",
@@ -63,7 +53,6 @@ private val searchFields = setOf(
 
 fun Route.reportRoutes(reportService: ReportService) {
 
-    // Publiek: meldingen zoeken.
     get("/reports") {
         val parameters = call.request.queryParameters
 
@@ -93,7 +82,6 @@ fun Route.reportRoutes(reportService: ReportService) {
         )
     }
 
-    // Publiek: één melding ophalen.
     get("/reports/{id}") {
         val id = reportId(call.parameters["id"])
 
@@ -105,18 +93,23 @@ fun Route.reportRoutes(reportService: ReportService) {
 
     authenticate("auth-jwt") {
 
-        // Beveiligd: nieuwe melding.
         post("/reports") {
             val user = call.principal<AuthenticatedUser>()
                 ?: throw unauthorized()
 
-            val body = readJsonObject(
-                call.request.contentType(),
-                call.receiveText(),
+            val body = StrictJson.readObject(
+                call,
                 createFields
             )
 
-            val request = requestJson
+            require("latitude" in body && "longitude" in body) {
+                "Latitude and longitude are required."
+            }
+
+            StrictJson.requireNumber(body, "latitude")
+            StrictJson.requireNumber(body, "longitude")
+
+            val request = StrictJson.json
                 .decodeFromJsonElement<CreateReportRequest>(body)
 
             call.respond(
@@ -129,16 +122,14 @@ fun Route.reportRoutes(reportService: ReportService) {
             )
         }
 
-        // Beveiligd: eigen melding wijzigen.
         patch("/reports/{id}") {
             val user = call.principal<AuthenticatedUser>()
                 ?: throw unauthorized()
 
             val id = reportId(call.parameters["id"])
 
-            val body = readJsonObject(
-                call.request.contentType(),
-                call.receiveText(),
+            val body = StrictJson.readObject(
+                call,
                 updateFields
             )
 
@@ -150,9 +141,18 @@ fun Route.reportRoutes(reportService: ReportService) {
                 title = body.stringField("title"),
                 description = body.stringField("description"),
                 category = body.stringField("category"),
-                latitude = body.numberField("latitude"),
-                longitude = body.numberField("longitude"),
-                imageUrl = body.stringField("imageUrl", nullable = true),
+                latitude = StrictJson.requireNumber(
+                    body,
+                    "latitude"
+                ),
+                longitude = StrictJson.requireNumber(
+                    body,
+                    "longitude"
+                ),
+                imageUrl = body.stringField(
+                    "imageUrl",
+                    nullable = true
+                ),
                 fields = body.keys
             )
 
@@ -166,13 +166,13 @@ fun Route.reportRoutes(reportService: ReportService) {
             )
         }
 
-        // Beveiligd: eigen melding verwijderen,
-        // of verwijderen als ADMIN.
         delete("/reports/{id}") {
             val user = call.principal<AuthenticatedUser>()
                 ?: throw unauthorized()
 
             val id = reportId(call.parameters["id"])
+
+            StrictJson.requireNoBody(call)
 
             reportService.delete(
                 id = id,
@@ -195,28 +195,6 @@ private fun reportId(value: String?): Long {
     return id
 }
 
-private fun readJsonObject(
-    contentType: ContentType,
-    text: String,
-    allowedFields: Set<String>
-): JsonObject {
-    require(contentType.match(ContentType.Application.Json)) {
-        "Content-Type must be application/json."
-    }
-
-    val element = requestJson.parseToJsonElement(text)
-
-    require(element is JsonObject) {
-        "Request body must be a JSON object."
-    }
-
-    require(element.keys.all { it in allowedFields }) {
-        "The request contains unknown fields."
-    }
-
-    return element
-}
-
 private fun JsonObject.stringField(
     name: String,
     nullable: Boolean = false
@@ -232,18 +210,6 @@ private fun JsonObject.stringField(
     }
 
     return value.content
-}
-
-private fun JsonObject.numberField(name: String): Double? {
-    if (name !in this) return null
-
-    val value = this[name]
-
-    require(value is JsonPrimitive && !value.isString) {
-        "$name must be a number."
-    }
-
-    return value.double
 }
 
 private fun unauthorized() = AppException(

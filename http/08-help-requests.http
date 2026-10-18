@@ -1,0 +1,295 @@
+
+# http/08-help-requests.http
+
+@baseUrl = http://127.0.0.1:8080/api/v1
+
+### 01 - Inloggen als eigenaar
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "http-test-01@brul.nl",
+  "password": "Welkom123!"
+}
+
+> {%
+    client.test("Eigenaar ingelogd", function() {
+        client.assert(response.status === 200);
+    });
+    if (response.status === 200) {
+        client.global.set("helpOwnerToken", response.body.accessToken);
+    }
+%}
+
+### 02 - Inloggen als helper
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "http-vote-test@brul.nl",
+  "password": "Welkom123!"
+}
+
+> {%
+    client.test("Helper ingelogd", function() {
+        client.assert(response.status === 200);
+    });
+    if (response.status === 200) {
+        client.global.set("helpUserToken", response.body.accessToken);
+    }
+%}
+
+### 03 - Hulpvraag aanmaken
+POST {{baseUrl}}/reports
+Authorization: Bearer {{helpOwnerToken}}
+Content-Type: application/json
+
+{
+  "type": "HELP_REQUEST",
+  "category": "GROCERIES",
+  "title": "Hulp bij boodschappen",
+  "description": "Ik zoek iemand die boodschappen kan ophalen.",
+  "latitude": 52.001,
+  "longitude": 4.213,
+  "maxHelpers": 1
+}
+
+> {%
+    client.test("Hulpvraag aangemaakt", function() {
+        client.assert(response.status === 201);
+        client.assert(response.body.status === "OPEN");
+        client.assert(response.body.participantCount === 0);
+    });
+    if (response.status === 201) {
+        client.global.set("helpReportId", response.body.id);
+    }
+%}
+
+### 04 - Publieke deelnemerslijst is leeg
+GET {{baseUrl}}/help-requests/{{helpReportId}}/participants
+
+> {%
+    client.test("Lege deelnemerslijst", function() {
+        client.assert(response.status === 200);
+        client.assert(response.body.length === 0);
+    });
+%}
+
+### 05 - Eigenaar mag niet meedoen
+POST {{baseUrl}}/help-requests/{{helpReportId}}/participants
+Authorization: Bearer {{helpOwnerToken}}
+
+> {%
+    client.test("Eigenaar mag niet meedoen", function() {
+        client.assert(response.status === 403);
+        client.assert(response.body.code === "CANNOT_JOIN_OWN_REQUEST");
+    });
+%}
+
+### 06 - Helper meldt zich aan
+POST {{baseUrl}}/help-requests/{{helpReportId}}/participants
+Authorization: Bearer {{helpUserToken}}
+
+> {%
+    client.test("Helper aangemeld", function() {
+        client.assert(response.status === 201);
+        client.assert(response.body.participantCount === 1);
+        client.assert(response.body.maxHelpers === 1);
+        client.assert(response.body.status === "FULL");
+    });
+%}
+
+### 07 - Dezelfde helper nogmaals aanmelden
+POST {{baseUrl}}/help-requests/{{helpReportId}}/participants
+Authorization: Bearer {{helpUserToken}}
+
+> {%
+    client.test("Dubbele deelname verboden", function() {
+        client.assert(response.status === 409);
+        client.assert(response.body.code === "ALREADY_PARTICIPATING");
+    });
+%}
+
+### 08 - Deelnemerslijst bevat één helper
+GET {{baseUrl}}/help-requests/{{helpReportId}}/participants
+
+> {%
+    client.test("Eén actieve helper", function() {
+        client.assert(response.status === 200);
+        client.assert(response.body.length === 1);
+        client.assert(response.body[0].joinedAt !== null);
+    });
+%}
+
+### 09 - Capaciteit verlagen naar nul mag niet
+PATCH {{baseUrl}}/help-requests/{{helpReportId}}/capacity
+Authorization: Bearer {{helpOwnerToken}}
+Content-Type: application/json
+
+{
+  "maxHelpers": 0
+}
+
+> {%
+    client.test("Capaciteit nul ongeldig", function() {
+        client.assert(response.status === 400);
+        client.assert(response.body.code === "VALIDATION_ERROR");
+    });
+%}
+
+### 10 - Capaciteit verhogen naar twee
+PATCH {{baseUrl}}/help-requests/{{helpReportId}}/capacity
+Authorization: Bearer {{helpOwnerToken}}
+Content-Type: application/json
+
+{
+  "maxHelpers": 2
+}
+
+> {%
+    client.test("Capaciteit verhoogd", function() {
+        client.assert(response.status === 200);
+        client.assert(response.body.maxHelpers === 2);
+        client.assert(response.body.participantCount === 1);
+        client.assert(response.body.status === "OPEN");
+        client.assert(response.body.updatedAt !== null);
+    });
+%}
+
+### 11 - Capaciteit terug naar één
+PATCH {{baseUrl}}/help-requests/{{helpReportId}}/capacity
+Authorization: Bearer {{helpOwnerToken}}
+Content-Type: application/json
+
+{
+  "maxHelpers": 1
+}
+
+> {%
+    client.test("Capaciteit terug naar één", function() {
+        client.assert(response.status === 200);
+        client.assert(response.body.status === "FULL");
+    });
+%}
+
+### 12 - Helper mag capaciteit niet aanpassen
+PATCH {{baseUrl}}/help-requests/{{helpReportId}}/capacity
+Authorization: Bearer {{helpUserToken}}
+Content-Type: application/json
+
+{
+  "maxHelpers": 3
+}
+
+> {%
+    client.test("Alleen eigenaar mag capaciteit aanpassen", function() {
+        client.assert(response.status === 403);
+        client.assert(response.body.code === "FORBIDDEN");
+    });
+%}
+
+### 13 - Hulpvraag sluiten
+POST {{baseUrl}}/help-requests/{{helpReportId}}/close
+Authorization: Bearer {{helpOwnerToken}}
+
+> {%
+    client.test("Hulpvraag gesloten", function() {
+        client.assert(response.status === 200);
+        client.assert(response.body.status === "CLOSED");
+        client.assert(response.body.closedAt !== null);
+        client.assert(response.body.updatedAt !== null);
+    });
+    if (response.status === 200) {
+        client.global.set("helpClosedAt", response.body.closedAt);
+        client.global.set("helpUpdatedAt", response.body.updatedAt);
+    }
+%}
+
+### 14 - Nogmaals sluiten verandert tijdstippen niet
+POST {{baseUrl}}/help-requests/{{helpReportId}}/close
+Authorization: Bearer {{helpOwnerToken}}
+
+> {%
+    client.test("Opnieuw sluiten is idempotent", function() {
+        client.assert(response.status === 200);
+        client.assert(response.body.closedAt ===
+            client.global.get("helpClosedAt"));
+        client.assert(response.body.updatedAt ===
+            client.global.get("helpUpdatedAt"));
+    });
+%}
+
+### 15 - Afmelden na sluiting mag
+DELETE {{baseUrl}}/help-requests/{{helpReportId}}/participants/me
+Authorization: Bearer {{helpUserToken}}
+
+> {%
+    client.test("Afmelden na sluiting", function() {
+        client.assert(response.status === 204);
+    });
+%}
+
+### 16 - Opnieuw afmelden geeft 404
+DELETE {{baseUrl}}/help-requests/{{helpReportId}}/participants/me
+Authorization: Bearer {{helpUserToken}}
+
+> {%
+    client.test("Deelname bestaat niet meer", function() {
+        client.assert(response.status === 404);
+        client.assert(response.body.code === "PARTICIPATION_NOT_FOUND");
+    });
+%}
+
+### 17 - Op gesloten hulpvraag aanmelden mag niet
+POST {{baseUrl}}/help-requests/{{helpReportId}}/participants
+Authorization: Bearer {{helpUserToken}}
+
+> {%
+    client.test("Gesloten hulpvraag weigert nieuwe deelname", function() {
+        client.assert(response.status === 409);
+        client.assert(response.body.code === "HELP_REQUEST_CLOSED");
+    });
+%}
+
+### 18 - Gesloten hulpvraag blijft gesloten
+GET {{baseUrl}}/reports/{{helpReportId}}
+
+> {%
+    client.test("Status blijft CLOSED", function() {
+        client.assert(response.status === 200);
+        client.assert(response.body.status === "CLOSED");
+        client.assert(response.body.participantCount === 0);
+    });
+%}
+
+### 19 - Gewone melding heeft geen deelnemers
+GET {{baseUrl}}/help-requests/12/participants
+
+# Deze test gebruikt een bestaand report-ID.
+# Alleen uitvoeren als report 12 nog steeds een SAFETY-melding is.
+
+> {%
+    client.test("Geen hulpvraag geeft 400", function() {
+        client.assert(response.status === 400);
+        client.assert(response.body.code === "NOT_A_HELP_REQUEST");
+    });
+%}
+
+### 20 - Onbekende hulpvraag
+GET {{baseUrl}}/help-requests/999999999/participants
+
+> {%
+    client.test("Onbekende hulpvraag geeft 404", function() {
+        client.assert(response.status === 404);
+        client.assert(response.body.code === "REPORT_NOT_FOUND");
+    });
+%}
+
+### 21 - Aanmelden zonder JWT
+POST {{baseUrl}}/help-requests/{{helpReportId}}/participants
+
+> {%
+    client.test("JWT verplicht", function() {
+        client.assert(response.status === 401);
+    });
+%}
