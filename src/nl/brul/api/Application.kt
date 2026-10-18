@@ -2,16 +2,19 @@
 
 package nl.brul.api
 
-import io.ktor.serialization.kotlinx.json.*
-import io.ktor.server.application.*
+import io.ktor.serialization.kotlinx.json.json
+import io.ktor.server.application.Application
 import io.ktor.server.netty.EngineMain
-import io.ktor.server.plugins.contentnegotiation.*
+import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.server.application.install
 import kotlinx.serialization.json.Json
 import nl.brul.api.common.error.configureErrorHandling
 import nl.brul.api.config.AppConfig
 import nl.brul.api.database.DatabaseFactory
 import nl.brul.api.features.auth.AuthService
 import nl.brul.api.features.auth.repository.ExposedRefreshSessionRepository
+import nl.brul.api.features.report.ReportService
+import nl.brul.api.features.report.repository.ExposedReportRepository
 import nl.brul.api.features.user.repository.ExposedUserRepository
 import nl.brul.api.security.BCryptPasswordHasher
 import nl.brul.api.security.JwtService
@@ -38,6 +41,7 @@ fun Application.module() {
             Json {
                 ignoreUnknownKeys = false
                 isLenient = false
+                explicitNulls = true
             }
         )
     }
@@ -45,9 +49,11 @@ fun Application.module() {
     configureErrorHandling()
 
     val userRepository = ExposedUserRepository()
+    val refreshSessionRepository = ExposedRefreshSessionRepository()
+    val reportRepository = ExposedReportRepository()
+
     val passwordHasher = BCryptPasswordHasher()
     val refreshTokenService = RefreshTokenService()
-    val refreshSessionRepository = ExposedRefreshSessionRepository()
 
     val authService = AuthService(
         users = userRepository,
@@ -57,10 +63,17 @@ fun Application.module() {
         refreshSessions = refreshSessionRepository
     )
 
+    val reportService = ReportService(
+        reports = reportRepository
+    )
+
     configureJwtAuthentication(
         jwtService = jwtService,
         users = userRepository
     )
 
-    configureRouting(authService)
+    configureRouting(
+        authService = authService,
+        reportService = reportService
+    )
 }

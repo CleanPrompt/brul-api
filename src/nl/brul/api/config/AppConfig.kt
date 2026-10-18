@@ -1,3 +1,5 @@
+// src/nl/brul/api/config/AppConfig.kt
+
 package nl.brul.api.config
 
 data class AppConfig(
@@ -9,9 +11,16 @@ data class AppConfig(
 ) {
     companion object {
         fun fromEnvironment(): AppConfig {
-            val port = System.getenv("BRUL_PORT")
-                ?.toIntOrNull()
-                ?: 8080
+            val portValue = System.getenv("BRUL_PORT")
+
+            val port = if (portValue == null) {
+                8080
+            } else {
+                portValue.toIntOrNull()
+                    ?: throw IllegalArgumentException(
+                        "BRUL_PORT must be a valid number."
+                    )
+            }
 
             require(port in 1..65535) {
                 "BRUL_PORT must be between 1 and 65535."
@@ -34,12 +43,12 @@ data class AppConfig(
             val jwtIssuer = System.getenv("BRUL_JWT_ISSUER")
                 ?: "brul-api"
 
-            val jwtAudience = System.getenv("BRUL_JWT_AUDIENCE")
-                ?: "brul-client"
-
             require(jwtIssuer.isNotBlank()) {
                 "BRUL_JWT_ISSUER must not be blank."
             }
+
+            val jwtAudience = System.getenv("BRUL_JWT_AUDIENCE")
+                ?: "brul-client"
 
             require(jwtAudience.isNotBlank()) {
                 "BRUL_JWT_AUDIENCE must not be blank."

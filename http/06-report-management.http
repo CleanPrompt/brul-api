@@ -1,0 +1,350 @@
+# http/06-report-management.http
+
+@baseUrl = http://127.0.0.1:8080/api/v1
+
+### 01 - Inloggen
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "http-test-01@brul.nl",
+  "password": "Welkom123!"
+}
+
+> {%
+    client.test("Login succesvol", function() {
+        client.assert(response.status === 200);
+    });
+
+    if (response.status === 200) {
+        client.global.set("accessToken", response.body.accessToken);
+    }
+%}
+
+### 02 - Testmelding aanmaken
+POST {{baseUrl}}/reports
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "type": "NUISANCE",
+  "category": "NOISE",
+  "title": "Geluidsoverlast in de straat",
+  "description": "Er is regelmatig harde muziek in de avond.",
+  "latitude": 52.001,
+  "longitude": 4.213
+}
+
+> {%
+    client.test("Melding aangemaakt", function() {
+        client.assert(response.status === 201);
+    });
+
+    if (response.status === 201) {
+        client.global.set("reportId", response.body.id);
+    }
+%}
+
+### 03 - Alle meldingen ophalen
+GET {{baseUrl}}/reports
+
+> {%
+    client.test("Lijst ophalen geeft 200", function() {
+        client.assert(response.status === 200);
+        client.assert(Array.isArray(response.body));
+    });
+%}
+
+### 04 - Filteren op type
+GET {{baseUrl}}/reports?type=NUISANCE
+
+> {%
+    client.test("Filteren op type werkt", function() {
+        client.assert(response.status === 200);
+        client.assert(response.body.every(
+            report => report.type === "NUISANCE"
+        ));
+    });
+%}
+
+### 05 - Zoeken op tekst
+GET {{baseUrl}}/reports?q=geluidsoverlast
+
+> {%
+    client.test("Zoeken op tekst geeft 200", function() {
+        client.assert(response.status === 200);
+    });
+%}
+
+### 06 - Sorteren op nieuwste
+GET {{baseUrl}}/reports?sort=newest
+
+> {%
+    client.test("Sorteren op nieuwste geeft 200", function() {
+        client.assert(response.status === 200);
+    });
+%}
+
+### 07 - Sorteren op likes
+GET {{baseUrl}}/reports?sort=mostLiked
+
+> {%
+    client.test("Sorteren op likes geeft 200", function() {
+        client.assert(response.status === 200);
+    });
+%}
+
+### 08 - Sorteren op weergaven
+GET {{baseUrl}}/reports?sort=mostViewed
+
+> {%
+    client.test("Sorteren op weergaven geeft 200", function() {
+        client.assert(response.status === 200);
+    });
+%}
+
+### 09 - Zoeken op afstand
+GET {{baseUrl}}/reports?latitude=52.001&longitude=4.213&radiusKm=5&sort=nearest
+
+> {%
+    client.test("Zoeken op afstand geeft 200", function() {
+        client.assert(response.status === 200);
+    });
+%}
+
+### 10 - Ongeldige straal
+GET {{baseUrl}}/reports?latitude=52.001&longitude=4.213&radiusKm=30
+
+> {%
+    client.test("Te grote straal geeft 400", function() {
+        client.assert(response.status === 400);
+        client.assert(response.body.code === "VALIDATION_ERROR");
+    });
+%}
+
+### 11 - Onbekende queryparameter
+GET {{baseUrl}}/reports?unknown=true
+
+> {%
+    client.test("Onbekende parameter geeft 400", function() {
+        client.assert(response.status === 400);
+    });
+%}
+
+### 12 - Dubbele queryparameter
+GET {{baseUrl}}/reports?sort=newest&sort=mostViewed
+
+> {%
+    client.test("Dubbele parameter geeft 400", function() {
+        client.assert(response.status === 400);
+    });
+%}
+
+### 13 - Eén melding ophalen
+GET {{baseUrl}}/reports/{{reportId}}
+
+> {%
+    client.test("Melding ophalen geeft 200", function() {
+        client.assert(response.status === 200);
+    });
+
+    if (response.status === 200) {
+        client.global.set("previousViewCount", response.body.viewCount);
+    }
+%}
+
+### 14 - ViewCount wordt verhoogd
+GET {{baseUrl}}/reports/{{reportId}}
+
+> {%
+    client.test("ViewCount is verhoogd", function() {
+        client.assert(response.status === 200);
+        client.assert(
+            response.body.viewCount ===
+            Number(client.global.get("previousViewCount")) + 1
+        );
+    });
+%}
+
+### 15 - Melding wijzigen
+PATCH {{baseUrl}}/reports/{{reportId}}
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "title": "Geluidsoverlast bijgewerkt",
+  "description": "De geluidsoverlast duurt nu tot na middernacht."
+}
+
+> {%
+    client.test("Wijzigen geeft 200", function() {
+        client.assert(response.status === 200);
+        client.assert(
+            response.body.title === "Geluidsoverlast bijgewerkt"
+        );
+        client.assert(response.body.updatedAt !== null);
+    });
+%}
+
+### 16 - Eén coördinaat wijzigen
+PATCH {{baseUrl}}/reports/{{reportId}}
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "latitude": 52.005
+}
+
+> {%
+    client.test("Eén coördinaat wijzigen werkt", function() {
+        client.assert(response.status === 200);
+        client.assert(response.body.latitude === 52.005);
+        client.assert(response.body.longitude === 4.213);
+    });
+%}
+
+### 17 - ImageUrl instellen
+PATCH {{baseUrl}}/reports/{{reportId}}
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "imageUrl": "https://example.com/foto.jpg"
+}
+
+> {%
+    client.test("Afbeelding instellen werkt", function() {
+        client.assert(response.status === 200);
+        client.assert(
+            response.body.imageUrl === "https://example.com/foto.jpg"
+        );
+    });
+%}
+
+### 18 - ImageUrl verwijderen
+PATCH {{baseUrl}}/reports/{{reportId}}
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "imageUrl": null
+}
+
+> {%
+    client.test("Afbeelding verwijderen werkt", function() {
+        client.assert(response.status === 200);
+        client.assert(response.body.imageUrl === null);
+    });
+%}
+
+### 19 - Lege PATCH
+PATCH {{baseUrl}}/reports/{{reportId}}
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{}
+
+> {%
+    client.test("Lege PATCH geeft 400", function() {
+        client.assert(response.status === 400);
+    });
+%}
+
+### 20 - Verboden veld wijzigen
+PATCH {{baseUrl}}/reports/{{reportId}}
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "ownerId": 999
+}
+
+> {%
+    client.test("ownerId wijzigen geeft 400", function() {
+        client.assert(response.status === 400);
+    });
+%}
+
+### 21 - Type wijzigen is verboden
+PATCH {{baseUrl}}/reports/{{reportId}}
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "type": "SAFETY"
+}
+
+> {%
+    client.test("Type wijzigen geeft 400", function() {
+        client.assert(response.status === 400);
+    });
+%}
+
+### 22 - Ongeldige categorie
+PATCH {{baseUrl}}/reports/{{reportId}}
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "category": "GROCERIES"
+}
+
+> {%
+    client.test("Verkeerde categorie geeft 400", function() {
+        client.assert(response.status === 400);
+    });
+%}
+
+### 23 - Wijzigen zonder JWT
+PATCH {{baseUrl}}/reports/{{reportId}}
+Content-Type: application/json
+
+{
+  "title": "Wijziging zonder toestemming"
+}
+
+> {%
+    client.test("Zonder JWT geeft 401", function() {
+        client.assert(response.status === 401);
+    });
+%}
+
+### 24 - Onbekende melding ophalen
+GET {{baseUrl}}/reports/999999999
+
+> {%
+    client.test("Onbekende melding geeft 404", function() {
+        client.assert(response.status === 404);
+        client.assert(response.body.code === "REPORT_NOT_FOUND");
+    });
+%}
+
+### 25 - Melding verwijderen
+DELETE {{baseUrl}}/reports/{{reportId}}
+Authorization: Bearer {{accessToken}}
+
+> {%
+    client.test("Verwijderen geeft 204", function() {
+        client.assert(response.status === 204);
+    });
+%}
+
+### 26 - Verwijderde melding bestaat niet meer
+GET {{baseUrl}}/reports/{{reportId}}
+
+> {%
+    client.test("Verwijderde melding geeft 404", function() {
+        client.assert(response.status === 404);
+        client.assert(response.body.code === "REPORT_NOT_FOUND");
+    });
+%}
+
+### 27 - Opnieuw verwijderen geeft 404
+DELETE {{baseUrl}}/reports/{{reportId}}
+Authorization: Bearer {{accessToken}}
+
+> {%
+    client.test("Tweede verwijdering geeft 404", function() {
+        client.assert(response.status === 404);
+    });
+%}

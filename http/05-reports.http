@@ -1,0 +1,309 @@
+# http/05-reports.http
+
+@baseUrl = http://127.0.0.1:8080/api/v1
+
+### 01 - Inloggen om een access token te krijgen
+# Gebruik een account dat je eerder hebt geregistreerd.
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "http-test-01@brul.nl",
+  "password": "Welkom123!"
+}
+
+> {%
+    client.test("Login geeft 200", function() {
+        client.assert(response.status === 200);
+    });
+
+    if (response.status === 200) {
+        client.global.set("accessToken", response.body.accessToken);
+    }
+%}
+
+### 02 - Geldige veiligheidsmelding aanmaken
+POST {{baseUrl}}/reports
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "type": "SAFETY",
+  "category": "THEFT",
+  "title": "Fiets gestolen",
+  "description": "Mijn fiets is gisteren bij het station gestolen.",
+  "latitude": 52.001,
+  "longitude": 4.213
+}
+
+> {%
+    client.test("Veiligheidsmelding geeft 201", function() {
+        client.assert(response.status === 201);
+    });
+
+    client.test("Nieuwe melding heeft geen weergaven", function() {
+        client.assert(response.body.viewCount === 0);
+    });
+
+    client.test("Geen capaciteit bij veiligheidsmelding", function() {
+        client.assert(response.body.maxHelpers === null);
+    });
+%}
+
+### 03 - Geldige overlastmelding aanmaken
+POST {{baseUrl}}/reports
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "type": "NUISANCE",
+  "category": "NOISE",
+  "title": "Geluidsoverlast",
+  "description": "Er is regelmatig harde muziek tot laat in de nacht.",
+  "latitude": 52.002,
+  "longitude": 4.214,
+  "imageUrl": null
+}
+
+> {%
+    client.test("Overlastmelding geeft 201", function() {
+        client.assert(response.status === 201);
+    });
+%}
+
+### 04 - Geldige hulpvraag aanmaken
+POST {{baseUrl}}/reports
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "type": "HELP_REQUEST",
+  "category": "GROCERIES",
+  "title": "Hulp bij boodschappen",
+  "description": "Ik zoek twee bewoners die boodschappen kunnen ophalen.",
+  "latitude": 52.001,
+  "longitude": 4.213,
+  "imageUrl": null,
+  "maxHelpers": 2
+}
+
+> {%
+    client.test("Hulpvraag geeft 201", function() {
+        client.assert(response.status === 201);
+    });
+
+    client.test("Nieuwe hulpvraag is OPEN", function() {
+        client.assert(response.body.status === "OPEN");
+    });
+
+    client.test("Capaciteit is twee", function() {
+        client.assert(response.body.maxHelpers === 2);
+    });
+
+    client.test("Er zijn nog geen deelnemers", function() {
+        client.assert(response.body.participantCount === 0);
+    });
+%}
+
+### 05 - Geen token: 401
+POST {{baseUrl}}/reports
+Content-Type: application/json
+
+{
+  "type": "SAFETY",
+  "category": "THEFT",
+  "title": "Fiets gestolen",
+  "description": "Mijn fiets is gisteren bij het station gestolen.",
+  "latitude": 52.001,
+  "longitude": 4.213
+}
+
+> {%
+    client.test("Zonder token geeft 401", function() {
+        client.assert(response.status === 401);
+    });
+%}
+
+### 06 - Verkeerde categorie: 400
+POST {{baseUrl}}/reports
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "type": "SAFETY",
+  "category": "GROCERIES",
+  "title": "Verkeerde categorie",
+  "description": "Deze categorie hoort niet bij een veiligheidsmelding.",
+  "latitude": 52.001,
+  "longitude": 4.213
+}
+
+> {%
+    client.test("Verkeerde categorie geeft 400", function() {
+        client.assert(response.status === 400);
+        client.assert(response.body.code === "VALIDATION_ERROR");
+    });
+%}
+
+### 07 - Hulpvraag zonder maxHelpers: 400
+POST {{baseUrl}}/reports
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "type": "HELP_REQUEST",
+  "category": "MOVING",
+  "title": "Hulp bij verhuizen",
+  "description": "Ik zoek hulp om een paar dozen te verplaatsen.",
+  "latitude": 52.001,
+  "longitude": 4.213
+}
+
+> {%
+    client.test("Ontbrekende capaciteit geeft 400", function() {
+        client.assert(response.status === 400);
+    });
+%}
+
+### 08 - maxHelpers bij SAFETY: 400
+POST {{baseUrl}}/reports
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "type": "SAFETY",
+  "category": "THEFT",
+  "title": "Fiets gestolen",
+  "description": "Mijn fiets is gisteren bij het station gestolen.",
+  "latitude": 52.001,
+  "longitude": 4.213,
+  "maxHelpers": null
+}
+
+> {%
+    client.test("maxHelpers bij SAFETY geeft 400", function() {
+        client.assert(response.status === 400);
+    });
+%}
+
+### 09 - Ongeldige breedtegraad: 400
+POST {{baseUrl}}/reports
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "type": "SAFETY",
+  "category": "TRAFFIC_SAFETY",
+  "title": "Gevaarlijke oversteekplaats",
+  "description": "Auto's rijden hier vaak te hard langs de oversteekplaats.",
+  "latitude": 95.0,
+  "longitude": 4.213
+}
+
+> {%
+    client.test("Ongeldige locatie geeft 400", function() {
+        client.assert(response.status === 400);
+    });
+%}
+
+### 10 - Te korte titel: 400
+POST {{baseUrl}}/reports
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "type": "NUISANCE",
+  "category": "WASTE",
+  "title": "Afv",
+  "description": "Er ligt al meerdere dagen afval naast de containers.",
+  "latitude": 52.001,
+  "longitude": 4.213
+}
+
+> {%
+    client.test("Te korte titel geeft 400", function() {
+        client.assert(response.status === 400);
+    });
+%}
+
+### 11 - Ongeldige imageUrl: 400
+POST {{baseUrl}}/reports
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "type": "NUISANCE",
+  "category": "WASTE",
+  "title": "Afval bij containers",
+  "description": "Er ligt al meerdere dagen afval naast de containers.",
+  "latitude": 52.001,
+  "longitude": 4.213,
+  "imageUrl": "ftp://example.com/foto.jpg"
+}
+
+> {%
+    client.test("Ongeldige afbeeldings-URL geeft 400", function() {
+        client.assert(response.status === 400);
+    });
+%}
+
+### 12 - Client probeert ownerId te bepalen: 400
+POST {{baseUrl}}/reports
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "type": "SAFETY",
+  "category": "THEFT",
+  "title": "Fiets gestolen",
+  "description": "Mijn fiets is gisteren bij het station gestolen.",
+  "latitude": 52.001,
+  "longitude": 4.213,
+  "ownerId": 999
+}
+
+> {%
+    client.test("ownerId in request geeft 400", function() {
+        client.assert(response.status === 400);
+    });
+%}
+
+### 13 - Onbekend veld: 400
+POST {{baseUrl}}/reports
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "type": "SAFETY",
+  "category": "THEFT",
+  "title": "Fiets gestolen",
+  "description": "Mijn fiets is gisteren bij het station gestolen.",
+  "latitude": 52.001,
+  "longitude": 4.213,
+  "extraField": "niet toegestaan"
+}
+
+> {%
+    client.test("Onbekend veld geeft 400", function() {
+        client.assert(response.status === 400);
+    });
+%}
+
+### 14 - Ontbrekende verplichte beschrijving: 400
+POST {{baseUrl}}/reports
+Authorization: Bearer {{accessToken}}
+Content-Type: application/json
+
+{
+  "type": "SAFETY",
+  "category": "THEFT",
+  "title": "Fiets gestolen",
+  "latitude": 52.001,
+  "longitude": 4.213
+}
+
+> {%
+    client.test("Ontbrekende beschrijving geeft 400", function() {
+        client.assert(response.status === 400);
+    });
+%}
