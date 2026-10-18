@@ -1,5 +1,4 @@
 // src/nl/brul/api/security/JwtService.kt
-
 package nl.brul.api.security
 
 import com.auth0.jwt.JWT

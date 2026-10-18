@@ -1,5 +1,4 @@
 // src/nl/brul/api/features/auth/AuthService.kt
-
 package nl.brul.api.features.auth
 
 import io.ktor.http.HttpStatusCode

@@ -1,5 +1,4 @@
 // src/nl/brul/api/security/RefreshTokenService.kt
-
 package nl.brul.api.security
 
 import java.security.MessageDigest

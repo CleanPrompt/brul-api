@@ -1,3 +1,4 @@
+// nl/brul/api/features/report/model/NuisanceReport.kt
 package nl.brul.api.features.report.model
 
 import java.time.Instant

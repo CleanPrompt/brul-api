@@ -1,3 +1,4 @@
+// nl/brul/api/features/user/dto/UserResponse.kt
 package nl.brul.api.features.user.dto
 
 import kotlinx.serialization.Serializable

@@ -1,5 +1,4 @@
 // src/nl/brul/api/security/BCryptPasswordHasher.kt
-
 package nl.brul.api.security
 
 import org.mindrot.jbcrypt.BCrypt

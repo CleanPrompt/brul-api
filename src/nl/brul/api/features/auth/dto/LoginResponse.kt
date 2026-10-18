@@ -1,3 +1,4 @@
+// // nl/brul/api/features/auth/dto/LoginResponse.kt
 package nl.brul.api.features.auth.dto
 
 import kotlinx.serialization.Serializable

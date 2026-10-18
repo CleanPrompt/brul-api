@@ -1,3 +1,4 @@
+// nl/brul/api/features/report/model/ReportCategory.kt
 package nl.brul.api.features.report.model
 
 enum class ReportCategory {

@@ -1,4 +1,3 @@
-
 // src/nl/brul/api/common/validation/StrictJson.kt
 package nl.brul.api.common.validation
 

@@ -1,4 +1,3 @@
-
 // src/nl/brul/api/features/vote/VoteRoutes.kt
 package nl.brul.api.features.vote
 

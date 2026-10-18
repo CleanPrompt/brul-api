@@ -1,3 +1,4 @@
+// nl/brul/api/common/error/AppException.kt
 package nl.brul.api.common.error
 
 import io.ktor.http.HttpStatusCode

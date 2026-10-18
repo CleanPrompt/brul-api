@@ -1,3 +1,5 @@
+# resources/application.yaml
+
 ktor:
   deployment:
     host: 0.0.0.0

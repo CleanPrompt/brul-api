@@ -1,5 +1,5 @@
-// src/nl/brul/api/features/report/repository/ExposedReportRepository.kt
 
+// src/nl/brul/api/features/report/repository/ExposedReportRepository.kt
 package nl.brul.api.features.report.repository
 
 import io.ktor.http.HttpStatusCode
@@ -46,7 +46,11 @@ class ExposedReportRepository : ReportRepository {
             it[closedAt] = null
         } get ReportsTable.id
 
-        loadReport(id)!!.report
+        val saved = requireNotNull(loadReport(id)) {
+            "Created report could not be loaded."
+        }
+
+        saved.report
     }
 
     override fun findAll(): List<ReportWithCounts> = transaction {
@@ -101,7 +105,10 @@ class ExposedReportRepository : ReportRepository {
 
         require(newReport.ownerId == existing.ownerId)
         require(newReport.type == existing.type)
-        require(newReport.maxHelpers == (existing as? HelpRequest)?.maxHelpers)
+        require(
+            newReport.maxHelpers ==
+                    (existing as? HelpRequest)?.maxHelpers
+        )
 
         val changed =
             newReport.title != existing.title ||
@@ -145,7 +152,7 @@ class ExposedReportRepository : ReportRepository {
             )
         }
 
-        // Votes en deelnames hebben ON DELETE CASCADE.
+        // Votes and participations are deleted by ON DELETE CASCADE.
         ReportsTable.deleteWhere {
             ReportsTable.id eq id
         }
@@ -190,7 +197,9 @@ class ExposedReportRepository : ReportRepository {
         )
 
         val ownerId = this[ReportsTable.ownerId]
-        val category = ReportCategory.valueOf(this[ReportsTable.category])
+        val category = ReportCategory.valueOf(
+            this[ReportsTable.category]
+        )
         val title = this[ReportsTable.title]
         val description = this[ReportsTable.description]
         val imageUrl = this[ReportsTable.imageUrl]
@@ -233,7 +242,9 @@ class ExposedReportRepository : ReportRepository {
                     }
                     .map { participation ->
                         HelpParticipation(
-                            id = participation[HelpParticipationsTable.id],
+                            id = participation[
+                                HelpParticipationsTable.id
+                            ],
                             helpRequestId = participation[
                                 HelpParticipationsTable.helpRequestId
                             ],

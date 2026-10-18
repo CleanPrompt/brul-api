@@ -1,3 +1,4 @@
+// nl/brul/api/features/report/model/Location.kt
 package nl.brul.api.features.report.model
 
 import kotlin.math.*

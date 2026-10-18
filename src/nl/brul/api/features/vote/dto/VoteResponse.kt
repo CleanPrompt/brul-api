@@ -1,5 +1,4 @@
 // src/nl/brul/api/features/vote/dto/VoteResponse.kt
-
 package nl.brul.api.features.vote.dto
 
 import kotlinx.serialization.Serializable

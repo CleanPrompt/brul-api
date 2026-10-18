@@ -1,5 +1,4 @@
 // src/nl/brul/api/features/report/ReportService.kt
-
 package nl.brul.api.features.report
 
 import io.ktor.http.HttpStatusCode

@@ -1,5 +1,4 @@
 // src/nl/brul/api/features/vote/repository/VoteRepository.kt
-
 package nl.brul.api.features.vote.repository
 
 import nl.brul.api.features.vote.dto.VoteResponse

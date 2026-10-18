@@ -1,5 +1,4 @@
 // src/nl/brul/api/features/auth/repository/RefreshSessionRepository.kt
-
 package nl.brul.api.features.auth.repository
 
 import nl.brul.api.features.user.model.User

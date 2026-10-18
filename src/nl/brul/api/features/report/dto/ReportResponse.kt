@@ -1,5 +1,4 @@
 // src/nl/brul/api/features/report/dto/ReportResponse.kt
-
 package nl.brul.api.features.report.dto
 
 import kotlinx.serialization.Serializable

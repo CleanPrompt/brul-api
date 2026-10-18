@@ -1,5 +1,4 @@
 // src/nl/brul/api/features/report/repository/ReportRepository.kt
-
 package nl.brul.api.features.report.repository
 
 import nl.brul.api.features.report.model.Location

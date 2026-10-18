@@ -1,4 +1,3 @@
-
 // src/nl/brul/api/features/help/dto/ParticipantResponse.kt
 package nl.brul.api.features.help.dto
 

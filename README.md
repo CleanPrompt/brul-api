@@ -1,6 +1,7 @@
 brul-api/
 │
 ├── module.yaml
+├── README.md
 │
 ├── resources/
 │   └── application.yaml
@@ -27,10 +28,13 @@ brul-api/
 │               │       └── HelpParticipationsTable.kt
 │               │
 │               ├── common/
-│               │   └── error/
-│               │       ├── ApiError.kt
-│               │       ├── AppException.kt
-│               │       └── ErrorHandling.kt
+│               │   ├── error/
+│               │   │   ├── ApiError.kt
+│               │   │   ├── AppException.kt
+│               │   │   └── ErrorHandling.kt
+│               │   │
+│               │   └── validation/
+│               │       └── StrictJson.kt
 │               │
 │               ├── security/
 │               │   ├── PasswordHasher.kt
@@ -70,20 +74,67 @@ brul-api/
 │                   │       ├── RefreshSessionRepository.kt
 │                   │       └── ExposedRefreshSessionRepository.kt
 │                   │
-│                   └── report/
-│                       └── model/
-│                           ├── Report.kt
-│                           ├── ReportType.kt
-│                           ├── ReportCategory.kt
-│                           ├── Location.kt
-│                           ├── SafetyReport.kt
-│                           ├── NuisanceReport.kt
-│                           ├── HelpRequest.kt
-│                           ├── HelpStatus.kt
-│                           └── HelpParticipation.kt
+│                   ├── report/
+│                   │   ├── ReportRoutes.kt
+│                   │   ├── ReportService.kt
+│                   │   │
+│                   │   ├── model/
+│                   │   │   ├── Report.kt
+│                   │   │   ├── ReportType.kt
+│                   │   │   ├── ReportCategory.kt
+│                   │   │   ├── Location.kt
+│                   │   │   ├── SafetyReport.kt
+│                   │   │   ├── NuisanceReport.kt
+│                   │   │   ├── HelpRequest.kt
+│                   │   │   ├── HelpStatus.kt
+│                   │   │   └── HelpParticipation.kt
+│                   │   │
+│                   │   ├── dto/
+│                   │   │   ├── CreateReportRequest.kt
+│                   │   │   └── ReportResponse.kt
+│                   │   │
+│                   │   └── repository/
+│                   │       ├── ReportRepository.kt
+│                   │       └── ExposedReportRepository.kt
+│                   │
+│                   ├── vote/
+│                   │   ├── VoteRoutes.kt
+│                   │   ├── VoteService.kt
+│                   │   │
+│                   │   ├── dto/
+│                   │   │   ├── VoteRequest.kt
+│                   │   │   └── VoteResponse.kt
+│                   │   │
+│                   │   └── repository/
+│                   │       ├── VoteRepository.kt
+│                   │       └── ExposedVoteRepository.kt
+│                   │
+│                   └── help/
+│                       ├── HelpRoutes.kt
+│                       ├── HelpService.kt
+│                       │
+│                       ├── dto/
+│                       │   ├── ParticipationResponse.kt
+│                       │   └── ParticipantResponse.kt
+│                       │
+│                       └── repository/
+│                           ├── HelpRepository.kt
+│                           └── ExposedHelpRepository.kt
+│
+├── test/
+│   └── nl/
+│       └── brul/
+│           └── api/
+│               │
+│               ├── features/
+│               │   └── report/
+│               │       ├── ReportServiceTest.kt
+│               │       │
+│               │       └── model/
+│               │           ├── LocationTest.kt
+│               │           └── HelpRequestTest.kt
+│               │
+│               └── integration/
+│                   └── HelpDatabaseIntegrationTest.kt
 │
 └── http/
-├── 01-health.http
-├── 02-register.http
-├── 03-auth.http
-└── 04-jwt-auth.http

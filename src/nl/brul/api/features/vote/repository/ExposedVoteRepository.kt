@@ -1,5 +1,4 @@
 // src/nl/brul/api/features/vote/repository/ExposedVoteRepository.kt
-
 package nl.brul.api.features.vote.repository
 
 import io.ktor.http.HttpStatusCode
@@ -24,7 +23,7 @@ class ExposedVoteRepository : VoteRepository {
         value: String
     ): VoteResponse = transaction {
 
-        // Vergrendel de melding tijdens het stemmen.
+        // Lock the report while processing the vote.
         val report = ReportsTable
             .selectAll()
             .where { ReportsTable.id eq reportId }
@@ -32,7 +31,7 @@ class ExposedVoteRepository : VoteRepository {
             .singleOrNull()
             ?: throw reportNotFound()
 
-        // Je mag niet op je eigen melding stemmen.
+        // Users cannot vote on their own reports.
         if (report[ReportsTable.ownerId] == userId) {
             throw AppException(
                 HttpStatusCode.Forbidden,
@@ -41,7 +40,7 @@ class ExposedVoteRepository : VoteRepository {
             )
         }
 
-        // Kijk of deze gebruiker al heeft gestemd.
+        // Check whether this user has already voted.
         val existingVote = VotesTable
             .selectAll()
             .where {
@@ -54,7 +53,7 @@ class ExposedVoteRepository : VoteRepository {
 
         if (existingVote == null) {
 
-            // Eerste stem van deze gebruiker.
+            // Save the user's first vote.
             VotesTable.insert {
                 it[VotesTable.reportId] = reportId
                 it[VotesTable.userId] = userId
@@ -65,7 +64,7 @@ class ExposedVoteRepository : VoteRepository {
 
         } else if (existingVote[VotesTable.value] != value) {
 
-            // Bestaande stem veranderen.
+            // Update the user's existing vote.
             VotesTable.update({
                 (VotesTable.reportId eq reportId) and
                         (VotesTable.userId eq userId)
@@ -75,13 +74,13 @@ class ExposedVoteRepository : VoteRepository {
             }
         }
 
-        // Bereken de actuele stemtotalen.
+        // Calculate the current vote totals.
         val votes = VotesTable
             .selectAll()
             .where { VotesTable.reportId eq reportId }
             .toList()
 
-        VoteResponse(
+        return@transaction VoteResponse(
             reportId = reportId,
             myVote = value,
             likeCount = votes.count {
@@ -99,7 +98,7 @@ class ExposedVoteRepository : VoteRepository {
     ) {
         transaction {
 
-            // Controleer of de melding bestaat.
+            // Check whether the report exists.
             val report = ReportsTable
                 .selectAll()
                 .where { ReportsTable.id eq reportId }
@@ -107,8 +106,8 @@ class ExposedVoteRepository : VoteRepository {
                 .singleOrNull()
                 ?: throw reportNotFound()
 
-            // Verwijder uitsluitend de stem van deze gebruiker.
-            // Als er geen stem bestaat, gebeurt er niets.
+            // Delete only this user's vote.
+            // If no vote exists, nothing happens.
             VotesTable.deleteWhere {
                 (VotesTable.reportId eq report[ReportsTable.id]) and
                         (VotesTable.userId eq userId)

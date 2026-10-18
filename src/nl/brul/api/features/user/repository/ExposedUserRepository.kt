@@ -1,3 +1,4 @@
+// nl/brul/api/features/user/repository/ExposedUserRepository.kt
 package nl.brul.api.features.user.repository
 
 import nl.brul.api.database.tables.UsersTable

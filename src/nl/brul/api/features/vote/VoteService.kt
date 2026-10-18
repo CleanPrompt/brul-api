@@ -1,5 +1,4 @@
 // src/nl/brul/api/features/vote/VoteService.kt
-
 package nl.brul.api.features.vote
 
 import nl.brul.api.features.vote.dto.VoteResponse
