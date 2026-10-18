@@ -1,0 +1,272 @@
+# http/07-votes.http
+
+@baseUrl = http://127.0.0.1:8080/api/v1
+
+### 01 - Inloggen als eigenaar (account A)
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "http-test-01@brul.nl",
+  "password": "Welkom123!"
+}
+
+> {%
+    client.test("Eigenaar ingelogd", function() {
+        client.assert(response.status === 200);
+    });
+
+    if (response.status === 200) {
+        client.global.set("ownerToken", response.body.accessToken);
+    }
+%}
+
+### 02 - Melding aanmaken als eigenaar
+POST {{baseUrl}}/reports
+Authorization: Bearer {{ownerToken}}
+Content-Type: application/json
+
+{
+  "type": "SAFETY",
+  "category": "THEFT",
+  "title": "Fietsendiefstal bij station",
+  "description": "Er zijn meerdere fietsen verdwenen bij het station.",
+  "latitude": 52.001,
+  "longitude": 4.213
+}
+
+> {%
+    client.test("Melding aangemaakt", function() {
+        client.assert(response.status === 201);
+    });
+
+    if (response.status === 201) {
+        client.global.set("voteReportId", response.body.id);
+    }
+%}
+
+### 03 - Tweede testaccount registreren
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+  "email": "http-vote-test@brul.nl",
+  "password": "Welkom123!"
+}
+
+> {%
+    client.test("Stemaccount bestaat of is aangemaakt", function() {
+        client.assert(
+            response.status === 201 || response.status === 409
+        );
+    });
+%}
+
+### 04 - Inloggen als stemmer (account B)
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "http-vote-test@brul.nl",
+  "password": "Welkom123!"
+}
+
+> {%
+    client.test("Stemmer ingelogd", function() {
+        client.assert(response.status === 200);
+    });
+
+    if (response.status === 200) {
+        client.global.set("voterToken", response.body.accessToken);
+    }
+%}
+
+### 05 - LIKE plaatsen
+PUT {{baseUrl}}/reports/{{voteReportId}}/vote
+Authorization: Bearer {{voterToken}}
+Content-Type: application/json
+
+{
+  "value": "LIKE"
+}
+
+> {%
+    client.test("LIKE geplaatst", function() {
+        client.assert(response.status === 200);
+        client.assert(response.body.myVote === "LIKE");
+        client.assert(response.body.likeCount === 1);
+        client.assert(response.body.dislikeCount === 0);
+    });
+%}
+
+### 06 - Nogmaals LIKE (geen dubbele stem)
+PUT {{baseUrl}}/reports/{{voteReportId}}/vote
+Authorization: Bearer {{voterToken}}
+Content-Type: application/json
+
+{
+  "value": "LIKE"
+}
+
+> {%
+    client.test("Tweede LIKE blijft één stem", function() {
+        client.assert(response.status === 200);
+        client.assert(response.body.likeCount === 1);
+        client.assert(response.body.dislikeCount === 0);
+    });
+%}
+
+### 07 - LIKE veranderen naar DISLIKE
+PUT {{baseUrl}}/reports/{{voteReportId}}/vote
+Authorization: Bearer {{voterToken}}
+Content-Type: application/json
+
+{
+  "value": "DISLIKE"
+}
+
+> {%
+    client.test("Stem veranderd naar DISLIKE", function() {
+        client.assert(response.status === 200);
+        client.assert(response.body.myVote === "DISLIKE");
+        client.assert(response.body.likeCount === 0);
+        client.assert(response.body.dislikeCount === 1);
+    });
+%}
+
+### 08 - Eigenaar probeert op eigen melding te stemmen
+PUT {{baseUrl}}/reports/{{voteReportId}}/vote
+Authorization: Bearer {{ownerToken}}
+Content-Type: application/json
+
+{
+  "value": "LIKE"
+}
+
+> {%
+    client.test("Eigen stem verboden", function() {
+        client.assert(response.status === 403);
+        client.assert(
+            response.body.code === "CANNOT_VOTE_OWN_REPORT"
+        );
+    });
+%}
+
+### 09 - Ongeldige stem
+PUT {{baseUrl}}/reports/{{voteReportId}}/vote
+Authorization: Bearer {{voterToken}}
+Content-Type: application/json
+
+{
+  "value": "MAYBE"
+}
+
+> {%
+    client.test("Ongeldige stem geeft 400", function() {
+        client.assert(response.status === 400);
+        client.assert(response.body.code === "VALIDATION_ERROR");
+    });
+%}
+
+### 10 - Onbekend veld
+PUT {{baseUrl}}/reports/{{voteReportId}}/vote
+Authorization: Bearer {{voterToken}}
+Content-Type: application/json
+
+{
+  "value": "LIKE",
+  "ownerId": 999
+}
+
+> {%
+    client.test("Onbekend veld geeft 400", function() {
+        client.assert(response.status === 400);
+    });
+%}
+
+### 11 - Stemmen zonder JWT
+PUT {{baseUrl}}/reports/{{voteReportId}}/vote
+Content-Type: application/json
+
+{
+  "value": "LIKE"
+}
+
+> {%
+    client.test("Geen JWT geeft 401", function() {
+        client.assert(response.status === 401);
+    });
+%}
+
+### 12 - Stemmen op onbekende melding
+PUT {{baseUrl}}/reports/999999999/vote
+Authorization: Bearer {{voterToken}}
+Content-Type: application/json
+
+{
+  "value": "LIKE"
+}
+
+> {%
+    client.test("Onbekende melding geeft 404", function() {
+        client.assert(response.status === 404);
+        client.assert(
+            response.body.code === "REPORT_NOT_FOUND"
+        );
+    });
+%}
+
+### 13 - ReportResponse toont stemtellers
+GET {{baseUrl}}/reports/{{voteReportId}}
+
+> {%
+    client.test("Report toont DISLIKE", function() {
+        client.assert(response.status === 200);
+        client.assert(response.body.likeCount === 0);
+        client.assert(response.body.dislikeCount === 1);
+    });
+%}
+
+### 14 - Eigen stem verwijderen
+DELETE {{baseUrl}}/reports/{{voteReportId}}/vote
+Authorization: Bearer {{voterToken}}
+
+> {%
+    client.test("Stem verwijderd", function() {
+        client.assert(response.status === 204);
+    });
+%}
+
+### 15 - Opnieuw verwijderen blijft 204
+DELETE {{baseUrl}}/reports/{{voteReportId}}/vote
+Authorization: Bearer {{voterToken}}
+
+> {%
+    client.test("Opnieuw verwijderen geeft 204", function() {
+        client.assert(response.status === 204);
+    });
+%}
+
+### 16 - Tellers zijn weer nul
+GET {{baseUrl}}/reports/{{voteReportId}}
+
+> {%
+    client.test("Stemtellers zijn nul", function() {
+        client.assert(response.status === 200);
+        client.assert(response.body.likeCount === 0);
+        client.assert(response.body.dislikeCount === 0);
+    });
+%}
+
+### 17 - Stem verwijderen op onbekende melding
+DELETE {{baseUrl}}/reports/999999999/vote
+Authorization: Bearer {{voterToken}}
+
+> {%
+    client.test("Onbekende melding geeft 404", function() {
+        client.assert(response.status === 404);
+        client.assert(
+            response.body.code === "REPORT_NOT_FOUND"
+        );
+    });
+%}

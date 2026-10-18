@@ -4,9 +4,8 @@ package nl.brul.api
 
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.Application
-import io.ktor.server.netty.EngineMain
-import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.application.install
+import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import kotlinx.serialization.json.Json
 import nl.brul.api.common.error.configureErrorHandling
 import nl.brul.api.config.AppConfig
@@ -16,13 +15,15 @@ import nl.brul.api.features.auth.repository.ExposedRefreshSessionRepository
 import nl.brul.api.features.report.ReportService
 import nl.brul.api.features.report.repository.ExposedReportRepository
 import nl.brul.api.features.user.repository.ExposedUserRepository
+import nl.brul.api.features.vote.VoteService
+import nl.brul.api.features.vote.repository.ExposedVoteRepository
 import nl.brul.api.security.BCryptPasswordHasher
 import nl.brul.api.security.JwtService
 import nl.brul.api.security.RefreshTokenService
 import nl.brul.api.security.configureJwtAuthentication
 
 fun main(args: Array<String>) {
-    EngineMain.main(args)
+    io.ktor.server.netty.EngineMain.main(args)
 }
 
 fun Application.module() {
@@ -51,6 +52,7 @@ fun Application.module() {
     val userRepository = ExposedUserRepository()
     val refreshSessionRepository = ExposedRefreshSessionRepository()
     val reportRepository = ExposedReportRepository()
+    val voteRepository = ExposedVoteRepository()
 
     val passwordHasher = BCryptPasswordHasher()
     val refreshTokenService = RefreshTokenService()
@@ -67,6 +69,10 @@ fun Application.module() {
         reports = reportRepository
     )
 
+    val voteService = VoteService(
+        votes = voteRepository
+    )
+
     configureJwtAuthentication(
         jwtService = jwtService,
         users = userRepository
@@ -74,6 +80,7 @@ fun Application.module() {
 
     configureRouting(
         authService = authService,
-        reportService = reportService
+        reportService = reportService,
+        voteService = voteService
     )
 }

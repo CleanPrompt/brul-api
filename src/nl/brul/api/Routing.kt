@@ -13,10 +13,13 @@ import nl.brul.api.features.auth.authRoutes
 import nl.brul.api.features.report.ReportService
 import nl.brul.api.features.report.reportRoutes
 import nl.brul.api.features.user.userRoutes
+import nl.brul.api.features.vote.VoteService
+import nl.brul.api.features.vote.voteRoutes
 
 fun Application.configureRouting(
     authService: AuthService,
-    reportService: ReportService
+    reportService: ReportService,
+    voteService: VoteService
 ) {
     routing {
         route("/api/v1") {
@@ -30,6 +33,7 @@ fun Application.configureRouting(
             authRoutes(authService)
             userRoutes()
             reportRoutes(reportService)
+            voteRoutes(voteService)
         }
     }
 }
